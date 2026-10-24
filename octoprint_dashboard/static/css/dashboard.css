@@ -19,198 +19,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-.dashboardGridItem * {
-    border: 0px solid rgba(0, 0, 0, 0.8);
-    padding: 5px;
-    font-size: 20px;
-    text-align: left;
-    vertical-align: middle;
-    padding-right: 0;
-}
-
-.dashboardGridItem.thumbnailContainer {
-    display: grid;
-}
-
-#dashboard_print_thumbnail {
-    margin: auto;
-    float: unset;
-    width: 50%;
-}
-
-.progressContainer div {
-    margin: 0 auto;
-    width: 100%;
-    text-align: center;
-}
-
-.dashboardIcon {
-    width: auto;
-    height: 40px;
-    filter: contrast(0%);
-    vertical-align: middle;
-    padding: 3px;
-}
-
-#dashboard_fullScreenIcon {
-    width: auto;
-    height: 15px;
-    float: right;
-    -webkit-user-drag: none;
-}
-
-#dashboard_fullWindowIcon {
-    width: auto;
-    height: 15px;
-    float: right;
-    -webkit-user-drag: none;
-}
-
-#dashboard_toggleWebcamIcon {
-    width: auto;
-    height: 15px;
-    float: right;
-}
-
-#dashboard_webcam_toggle .cameraStreamIcon {
-    width: auto;
-    height: 15px;
-    float: left;
-    padding: 3px;
-    opacity: 0.5;
-    position: relative;
-    z-index: 1;
-}
-
-#dashboard_webcam_toggle .cameraStreamIcon:hover {
-    opacity: 1;
-}
-
-.dashboardButton {
-    width: 95%;
-}
-
-.dashboardSmall {
-    color: #08c;
-    font-size: 15px;
-    padding: 0;
-}
-
-.dashboardLarge {
-    color: #08c;
-    font-size: 25px;
-}
-
-.dashboardProgressContainer {
-    .u-absoluteCenter();
-    .u-flexCenter();
-}
-
-.dashboardLayerProgressContainer {
-    margin-left: 20px;
-}
-
-.dashboardProgressInline {
-    display: inline;
-}
-
-.dashboardGauge {
-    stroke: #08c;
-}
-
-div.inline {
-    display: inline-block;
-}
-
-.dashboard_threeQuarterGauge>svg>path.dashboardTempTick {
-    stroke-width: 2px;
-}
-
-.dashboard_threeQuarterGauge>svg>path.dashboard_threeQuarterGauge_target {
-    will-change: auto;
-    stroke-width: 5px;
-    stroke-opacity: 0.7;
-    stroke-miterlimit: round;
-    transition: stroke-dashoffset 850ms ease-in-out;
-}
-
-.dashboard_threeQuarterGauge>svg>path {
-    will-change: auto;
-    stroke-width: 20px;
-    stroke-miterlimit: round;
-    shape-rendering: auto;
-    transition: stroke-dashoffset 500ms ease-in-out;
-}
-
-.dashboardFeedrate>svg>path {
-    will-change: auto;
-    stroke-miterlimit: round;
-    shape-rendering: auto;
-    transition: stroke-dashoffset 500ms ease-in-out;
-    stroke-width: unset;
-}
-
-#dashboardFeedrateAvg {
-    stroke: black;
-}
-
-.dashboard_threeQuarterGauge>svg>text {
-    font-family: sans-serif;
-    fill: #08c;
-}
-
-.dashboardProgressBar>svg>path {
-    will-change: auto;
-    stroke-width: 20px;
-    stroke-miterlimit: round;
-    shape-rendering: auto;
-    transition: stroke-dashoffset 500ms ease-in-out;
-}
-
-/*Chart*/
-
-.ct-chart {
-    padding: 0px;
-    padding-top: 5px;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-.ct-series-a .ct-line {
-    stroke: #08c;
-    stroke-width: 3px;
-}
-
-.ct-labels span {
-    color: steelblue;
-}
-
-.ct-grids line {
-    color: steelblue;
-}
-
-.ct-series-a .ct-area {
-    fill: steelblue;
-}
-
-.ct-grid {
-    stroke: steelblue;
-}
-
-.ct-horizontal {
-    stroke: steelblue;
-}
-
-.dashboardSettingsWidgetsRow {
-    margin-top: 5px;
-}
-
 /* Webcam */
 
 #dashboard_webcam_container #dashboard_webcam_rotator {
     position: relative;
     width: 100%;
-    pointer-events: none
+    pointer-events: none;
 }
 
 #dashboard_webcam_container .webcam_unrotated .webcam_fixed_ratio.ratio43 {
@@ -294,131 +108,6 @@ div.inline {
     transform: translateY(-50%) rotate(-90deg) scaleY(-1.333) scaleX(-1.333);
 }
 
-#dashboard_webcam_container .btn {
-    float: right;
-    margin-right: 5px;
-    color: #494949 !important;
-    /*text-transform: uppercase;*/
-    /*text-decoration: none;*/
-    background-color: #ffffff;
-    background: #ffffff;
-    /*padding: 0px;*/
-    border: none;
-    /*4px solid #494949 !important;*/
-    outline: none;
-    /*display: inline-block;*/
-    transition: all 0.4s ease 0s;
-}
-
-#dashboard_webcam_container .btn:hover {
-    color: #ffffff !important;
-    /*background: gray;  #f6b93b;*/
-    border-color: gray;
-    /*#f6b93b !important;*/
-    transition: all 0.4s ease 0s;
-}
-
-/* Small Screens */
-
-@media (max-width: 700px) {
-    #touch .dashboardGridItem {
-        text-align: center;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: solid 1px grey!important;
-    }
-    #touch .dashboardGridItem>span::before {
-        content: "\A";
-        white-space: pre;
-    }
-    #touch .dashboardGridItem>div.inline {
-        display: block;
-        margin-top: 10px;
-        text-align: center;
-    }
-}
-
-#touch input#dashboard_fullScreenIcon, #touch input#dashboard_fullWindowIcon, #touch input#dashboard_toggleWebcamIcon {
-    height: 18px!important;
-    background: none!important;
-    color: white!important;
-    opacity: 1!important;
-}
-
-/* FullScreen.*/
-
-.dashboard-full #dashboard_fullScreenIcon {
-    height: 2.1vmin;
-    position: sticky;
-    top: 0;
-}
-
-.dashboard-full #dashboard_fullWindowIcon {
-    height: 2.1vmin;
-    position: sticky;
-    top: 0;
-}
-
-.dashboard-full #dashboard_toggleWebcamIcon {
-    height: 2.1vmin;
-    position: sticky;
-    top: 0;
-}
-
-.dashboard-full .cameraStreamIcon {
-    height: 2.1vmin;
-    padding: 0.4vmin;
-}
-
-.dashboard-full .dashboardIcon {
-    padding: 0.4vmin;
-}
-
-.dashboard-full .dashboardProgressContainer svg text.dashboardGauge.dashboardGaugeValue {
-    font-size: 180%;
-}
-
-.dashboard-full .dashboardProgressContainer svg text.dashboardGauge.dashboardGaugeName {
-    font-size: 100%;
-}
-
-.dashboard-full .dashboardIcon {
-    height: 3vmin;
-    width: auto;
-}
-
-.dashboard-full .progressContainer {
-    width: 100%;
-    height: fit-content;
-}
-
-.dashboard-full .dashboardProgressContainer svg {
-    width: 13vmin;
-    height: 13vmin;
-}
-
-.dashboard-full svg {
-    width: 9vw;
-    height: 13vh;
-}
-
-.dashboard-full .dashboardGridItem * {
-    font-size: 2.6vmin;
-    line-height: 2.6vmin;
-    padding: 0.6vmin;
-}
-
-.dashboard-full .dashboardGridItem svg text {
-    font-size: 20px;
-    line-height: 20px;
-}
-
-.dashboard-full .ct-label {
-    font-size: 1.6vmin;
-    position: relative;
-    bottom: 0.6vmin;
-}
-
 .dashboardContainer.dashboard-full {
     color: #dadadc!important;
     font-weight: 400;
@@ -434,18 +123,6 @@ div.inline {
     overflow: auto;
     padding: 2vmin;
     box-sizing: border-box;
-}
-
-.dashboardContainer.dashboard-full .dashboardGridItem {
-    text-align: center;
-    margin-bottom: 1vmin;
-    padding-bottom: 0px;
-    font-size: 2.6vmin;
-    line-height: 2.6vmin;
-}
-
-.dashboardContainer.dashboard-full .dashboardGridItem>div.inline {
-    text-align: center;
 }
 
 .dashboardFullLoader {
@@ -464,60 +141,11 @@ body:fullscreen .ui-pnotify {
     display: none;
 }
 
-.dashboard-full .dashboardProgressContainer.dashboardProgressInline {
-    margin: 0.5vmin;
-}
-
-.dashboardProgressContainer.dashboardProgressInline {
-    margin: 4px;
-}
-
-.dashboardContainer.dashboard-full .dashboardGridItem.printerMessage {
-    margin-bottom: 0px!important;
-}
-
-.dashboard-full .printerMessage>br {
-    display: none;
-}
-
-.dashboard-full .dashboardGridItem .ct-chart * {
-    padding: 0px;
-}
-
-.dashboard-full .dashboardGridItem.printerMessage span::before {
-    content: "\A";
-    white-space: pre;
-}
-
-.dashboard-full .dashboardGridItem .dashboardSmall {
-    font-size: 1.6vmin;
-    line-height: 2.6vmin;
-    padding: 0.2vmin;
-}
-
-button.dashboardButton#job_cancel {
-    position: relative;
-    right: 0;
-    transition: width 0.5s, right 0.5s;
-    overflow: hidden;
-}
-
 button.dashboardButton#job_cancel.confirm {
-    right: 200%;
-    width: 300%;
-}
-
-button.dashboardButton#job_cancel>span>span {
-    float: right;
-    margin-right: 7px;
-}
-
-.dashboardGridItem.jobControl {
-    margin-top: 10px;
-}
-
-.dashboardGridItem span#eta {
-    padding-left: 0px;
+    border-color: #c92a2a;
+    background: #e03131;
+    color: #fff;
+    text-shadow: none;
 }
 
 .dashboardContainer.dashboard-full #layerWarning {
@@ -539,25 +167,12 @@ button.dashboardButton#job_cancel>span>span {
     align-items: center;
 }
 
-#dashboardCustomizeLink {
-    color: inherit;
-    opacity: 0.6;
-    padding: 0 6px;
-    line-height: 15px;
-}
-
-#dashboardCustomizeLink:hover,
-#dashboardCustomizeLink:focus {
-    opacity: 1;
-    text-decoration: none;
-}
-
 .dashboardGrid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-auto-flow: row dense;
     gap: 10px;
-    padding-top: 22px;
+    padding-top: 40px;
 }
 
 .dashboardCard {
@@ -598,21 +213,15 @@ button.dashboardButton#job_cancel>span>span {
     min-width: 0;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-content: flex-start;
+    align-items: flex-start;
     justify-content: space-around;
 }
 
-.dashboardCardBody>.dashboardGridItem {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.dashboardCardBody>.progressContainer,
-.dashboardCardBody>.dashboardProgressBar,
-.dashboardCardBody>.layerTimes,
-.dashboardCardBody>#dashboard_webcam_container {
-    width: 100%;
+.dashboardCardBody>#dashboard_webcam_container,
+.dashboardCardBody>.thumbnailContainer {
     flex: 1 1 100%;
+    width: 100%;
 }
 
 @media (max-width: 767px) {
@@ -740,7 +349,7 @@ button.dashboardButton#job_cancel>span>span {
 
 .dashboard-full .dashboardGrid {
     gap: 1.5vmin;
-    padding-top: 3vmin;
+    padding-top: 40px;
 }
 
 .dashboard-full .dashboardCard {
@@ -767,7 +376,6 @@ button.dashboardButton#job_cancel>span>span {
     z-index: 1;
     background: rgba(0, 0, 0, 0.45);
 }
-
 
 /* Widget settings dialog */
 
@@ -855,3 +463,521 @@ button.dashboardButton#job_cancel>span>span {
     border: 1px solid rgba(128, 128, 128, 0.4);
     border-radius: 5px;
 }
+
+/* Widgets: theme colors are inherited, the accent comes from --dashboard-accent */
+
+.dashboardIco {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: middle;
+}
+
+.dashboardIconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-left: 4px;
+    padding: 0;
+    border: 1px solid rgba(128, 128, 128, 0.35);
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    opacity: 0.75;
+}
+
+.dashboardIconButton:hover,
+.dashboardIconButton:focus {
+    opacity: 1;
+    color: inherit;
+    text-decoration: none;
+}
+
+.dashboardWidget {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+}
+
+.dashboardHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+.dashboardHeadName {
+    flex-shrink: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboardHeadRight {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.dashboardBig {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.dashboardUnit {
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.dashboardSmall {
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.dashboardBar {
+    flex: 1;
+    height: 6px;
+    min-width: 30px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(128, 128, 128, 0.2);
+}
+
+.dashboardBar i {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--dashboard-accent, #08c);
+    transition: width 0.5s ease-in-out;
+}
+
+/* Rows of key, bar and value (system info) */
+
+.dashboardRows {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.dashboardRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.dashboardRowKey {
+    width: 36px;
+    opacity: 0.7;
+}
+
+.dashboardRowValue {
+    width: 44px;
+    text-align: right;
+    font-weight: 600;
+}
+
+/* Stats: icon, small label, value */
+
+.dashboardStats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    width: 100%;
+}
+
+.dashboardStats:empty {
+    display: none;
+}
+
+.dashboardStat {
+    display: flex;
+    flex: 1 1 120px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.dashboardStat>.dashboardIco {
+    width: 22px;
+    height: 22px;
+    opacity: 0.7;
+}
+
+.dashboardStat>div {
+    min-width: 0;
+}
+
+.dashboardStatKey {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.dashboardStatValue {
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboardStatValue small {
+    margin-left: 6px;
+    font-weight: 400;
+    opacity: 0.75;
+}
+
+.dashboardMessage {
+    flex-basis: 100%;
+}
+
+/* Gauges */
+
+.dashboardGauges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}
+
+.dashboardGauges:empty {
+    display: none;
+}
+
+.dashboardGauge {
+    display: flex;
+    flex: 1 1 110px;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 260px;
+    margin: 0 auto;
+    container-type: inline-size;
+}
+
+.dashboardDial {
+    position: relative;
+}
+
+.dashboardDial>svg {
+    display: block;
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    margin: 0 auto;
+}
+
+.dashboardTrack {
+    fill: none;
+    stroke: rgba(128, 128, 128, 0.2);
+    stroke-width: 9;
+    stroke-linecap: round;
+}
+
+.dashboardArc {
+    fill: none;
+    stroke: var(--dashboard-accent, #08c);
+    stroke-width: 9;
+    stroke-linecap: round;
+    transition: stroke 0.5s;
+}
+
+.dashboardTick {
+    stroke: currentColor;
+    stroke-width: 1.5;
+    opacity: 0.45;
+}
+
+.dashboardMarker {
+    fill: #fff;
+    stroke: #333;
+    stroke-width: 2;
+}
+
+.dashboardDialValue {
+    position: absolute;
+    top: 33%;
+    right: 0;
+    left: 0;
+    text-align: center;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.dashboardDialValue span {
+    font-size: 22px;
+    font-size: clamp(16px, 15cqw, 30px);
+    font-weight: 600;
+}
+
+.dashboardDialValue small {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.dashboardTrend {
+    position: absolute;
+    top: 80%;
+    right: 0;
+    left: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 12px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.dashboardTrend .dashboardIco {
+    width: 12px;
+    height: 12px;
+    margin-right: 2px;
+    stroke-width: 2.5;
+    vertical-align: top;
+}
+
+.dashboardTrend-up {
+    color: #e8590c;
+}
+
+.dashboardTrend-down {
+    color: var(--dashboard-accent, #08c);
+}
+
+.dashboardTrend-stable {
+    opacity: 0.6;
+}
+
+.dashboardOffScale {
+    position: absolute;
+    top: 0;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e03131;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.dashboardSpark {
+    display: block;
+    width: 100%;
+    height: 14px;
+}
+
+.dashboardSpark polyline {
+    fill: none;
+    stroke-width: 1.5;
+    opacity: 0.6;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Progress rings and bars */
+
+.dashboardRings {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 10px;
+    width: 100%;
+}
+
+.dashboardRings:empty {
+    display: none;
+}
+
+.dashboardRingsBars {
+    flex-direction: column;
+}
+
+.dashboardRing {
+    position: relative;
+    width: 110px;
+}
+
+.dashboardRing>svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.dashboardRing .dashboardTrack,
+.dashboardRing .dashboardArc {
+    stroke-width: 10;
+}
+
+.dashboardRingValue {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    line-height: 1.1;
+}
+
+.dashboardRingValue span {
+    display: block;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.dashboardRingValue small {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.dashboardProgressRow {
+    width: 100%;
+}
+
+.dashboardProgressRowText {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    font-size: 12px;
+}
+
+/* Layer graph */
+
+.dashboardLayerBars {
+    height: 90px;
+    overflow: hidden;
+}
+
+.dashboardLayerBarsScroll {
+    overflow-x: auto;
+}
+
+.dashboardLayerBars svg {
+    display: block;
+    height: 100%;
+}
+
+.dashboardLayerBars rect {
+    fill: var(--dashboard-accent, #08c);
+    opacity: 0.8;
+}
+
+.dashboardLayerBars rect.current {
+    fill: #e8590c;
+    opacity: 1;
+}
+
+.dashboardEmpty {
+    padding: 20px 0;
+    font-size: 12px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.dashboardAxis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* Job control, thumbnail, webcam */
+
+.dashboardButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+}
+
+.dashboardButtons .dashboardButton {
+    flex: 1 1 90px;
+    min-width: 0;
+    white-space: normal;
+}
+
+.dashboardGridItem.thumbnailContainer {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+#dashboard_print_thumbnail {
+    float: unset;
+    max-width: 100%;
+    max-height: 200px;
+    margin: auto;
+}
+
+#dashboard_webcam_container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+.dashboardCamButtons {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    display: flex;
+}
+
+.dashboardCamButtons .dashboardIconButton {
+    border-color: transparent;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+}
+
+/* Fullscreen: everything a bit larger */
+
+.dashboard-full .dashboardDialValue span,
+.dashboard-full .dashboardRingValue span,
+.dashboard-full .dashboardBig {
+    font-size: 4vmin;
+}
+
+.dashboard-full .dashboardStatValue {
+    font-size: 2.6vmin;
+}
+
+.dashboard-full .dashboardHead,
+.dashboard-full .dashboardStatKey {
+    font-size: 1.6vmin;
+    line-height: 2.2vmin;
+}
+
+.dashboard-full .dashboardDial>svg {
+    max-width: 28vmin;
+}
+
+.dashboard-full .dashboardRing {
+    width: 16vmin;
+}
+

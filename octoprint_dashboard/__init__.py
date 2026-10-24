@@ -613,6 +613,7 @@ class DashboardPlugin(
             temperatureTicks="0",
             hideHotend=False,
             showTempGaugeColors=False,
+            showTempHistory=True,
             targetTempDeviation="10",
             # enclosure
             enclosureGaugeStyle="3/4",
@@ -830,10 +831,8 @@ class DashboardPlugin(
             js=[
                 "js/errorReporter.js",
                 "js/dashboard.js",
-                "js/chartist.min.js",
-                "js/fitty.min.js",
             ],
-            css=["css/dashboard.css", "css/chartist.min.css"],
+            css=["css/dashboard.css"],
             less=["less/dashboard.less"],
         )
 

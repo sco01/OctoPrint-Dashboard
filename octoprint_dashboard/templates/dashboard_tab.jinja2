@@ -20,26 +20,24 @@
 -->
 
 <div id="dashboardContainer" class="dashboardContainer" data-bind="css: dashboardFullClass()">
-  <style id="dashboard_theme_color_tag" data-bind="text: '.ct-series-a .ct-line, .dashboardGauge, .dashboardGridItem.speed svg path#t2 { stroke: ' + accentColor() + '!important; }' +
-                      '.ct-chart span, .dashboardSmall, .dashboardLarge { color: ' + accentColor() + '!important; }' +
-                      '.dashboardContainer svg text, .dashboardGridItem.speed svg path#t1, .dashboardGridItem.speed svg circle, #dashboardFeedrate5Avg, #dashboardFeedrateLive { stroke: ' + accentColor() + '!important; fill: ' + accentColor() + '!important; }' +
-                      '.dashboardTempTick { stroke: ' + textColor() + '!important; }'">
-  </style>
-  <div class="dashboardToolbar">
-    <a id="dashboardCustomizeLink" href="#" title="{{ _('Customize layout') }}"
-      data-bind="click: startEditLayout, visible: canEditLayout() && !isFull() && !editMode()">
-      <i class="fas fa-th-large"></i>
+  <style id="dashboard_theme_color_tag" data-bind="text: '.dashboardContainer { --dashboard-accent: ' + accentColor() + '; }'"></style>
+  <div class="dashboardToolbar" data-bind="visible: !editMode()">
+    <button type="button" class="dashboardIconButton" id="dashboardCustomizeLink" title="{{ _('Customize layout') }}"
+      data-bind="click: startEditLayout, visible: canEditLayout() && !isFull()">
+      <!-- ko template: { name: 'dashboard_icon', data: 'layout' } --><!-- /ko -->
+    </button>
+    <button type="button" class="dashboardIconButton" id="dashboard_toggleWebcamIcon" title="{{ _('Toggle Webcam') }}"
+      data-bind="click: toggleWebcam, visible: widget.webcam.shown()">
+      <!-- ko template: { name: 'dashboard_icon', data: 'camera' } --><!-- /ko -->
+    </button>
+    <button type="button" class="dashboardIconButton" id="dashboard_fullScreenIcon" title="{{ _('Fullscreen (Esc to cancel)') }}"
+      data-bind="click: fullScreen, visible: widget.fullscreenButtons.shown()">
+      <!-- ko template: { name: 'dashboard_icon', data: 'fullscreen' } --><!-- /ko -->
+    </button>
+    <a class="dashboardIconButton" id="fullWindowIconLink" title="{{ _('Full Browser Window (Esc to leave)') }}" href="#"
+      data-bind="click: toggleFullBrowserWindow, visible: widget.fullscreenButtons.shown(), attr: {href: getToggleFullBrowserWindowHref()}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'window' } --><!-- /ko -->
     </a>
-    <a id="fullWindowIconLink" title="{{ _('Full Browser Window') }}" href="#"
-      data-bind="click: toggleFullBrowserWindow, visible: widget.fullscreenButtons.shown() && !editMode(), attr: {href: getToggleFullBrowserWindowHref()}">
-      <img class="dashboardIcon" id="dashboard_fullWindowIcon" src="plugin/dashboard/static/img/fullwindow-icon.png" />
-    </a>
-    <input class="dashboardIcon" id="dashboard_fullScreenIcon" title="{{ _('Fullscreen (Esc to cancel)') }}"
-      type="image" src="plugin/dashboard/static/img/fullscreen-icon.png"
-      data-bind="click: fullScreen, visible: widget.fullscreenButtons.shown() && !editMode()" />
-    <input class="dashboardIcon" id="dashboard_toggleWebcamIcon" title="{{ _('Toggle Webcam') }}" type="image"
-      src="plugin/dashboard/static/img/webcam-icon-no-background.png"
-      data-bind="click: toggleWebcam(), visible: widget.webcam.shown() && !editMode()" />
   </div>
 
     <div class="alert alert-block"
@@ -208,601 +206,339 @@
 
 <!-- Widget templates, rendered with the dashboard view model as data -->
 
-<script type="text/html" id="dashboard_widget_systemInfo">
-  <!-- System Info-->
-  <div class="dashboardGridItem sysInfo">
-    <img class="dashboardIcon" title="{{ _('CPU Usage') }}" src="plugin/dashboard/static/img/cpu-icon.png">
-    <div class="inline">
-        <span id="cpuInfo" title="{{ _('CPU Usage') }}" data-bind="text: cpuPercent() + '%'"></span>
-      <span class="dashboardSmall" id="cpuTemp" title="{{ _('CPU Temperature') }}"
-          data-bind="text: convertTemp(cpuTemp()) + tempSymbol(), style: { color: cpuTempColor()}"></span><br />
-      <span class="dashboardSmall" id="cpuFreq" title="{{ _('CPU Frequency') }}"
-          data-bind="text: cpuFreq() + 'MHz'"></span>
+<!-- An icon from the icon set (icons in dashboard.js), with the icon name as data -->
+<script type="text/html" id="dashboard_icon">
+  <svg class="dashboardIco" viewBox="0 0 24 24" aria-hidden="true"><path data-bind="attr: { d: $root.icons[$data] || $root.icons.command }"></path></svg>
+</script>
+
+<!-- A 270 degree gauge, with a gauge object as data (see makeGauge in dashboard.js) -->
+<script type="text/html" id="dashboard_gauge">
+  <div class="dashboardGauge" data-bind="attr: { title: name }">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: icon } --><!-- /ko -->
+      <span class="dashboardHeadName" data-bind="text: name"></span>
+      <span class="dashboardHeadRight" data-bind="text: targetText()"></span>
+    </div>
+    <div class="dashboardDial">
+      <svg viewBox="0 0 120 96" role="img" data-bind="attr: { 'aria-label': name + ' ' + text() + unit() }">
+        <path class="dashboardTrack" data-bind="attr: { d: $root.gaugeTrack }"></path>
+        <!-- ko foreach: ticks() -->
+        <path class="dashboardTick" data-bind="attr: { d: $data }"></path>
+        <!-- /ko -->
+        <path class="dashboardArc" data-bind="attr: { d: $root.gaugeArc(value(), max()) }, style: { stroke: color() }"></path>
+        <!-- ko if: target() > 0 -->
+        <circle class="dashboardMarker" r="4.5"
+          data-bind="attr: { cx: $root.gaugePoint(target(), max()).x, cy: $root.gaugePoint(target(), max()).y }"></circle>
+        <!-- /ko -->
+      </svg>
+      <div class="dashboardDialValue">
+        <span data-bind="text: text()"></span><small data-bind="text: unit()"></small>
+      </div>
+      <!-- ko if: trend() -->
+      <div class="dashboardTrend" data-bind="css: 'dashboardTrend-' + trend()"><svg class="dashboardIco" viewBox="0 0 24 24" aria-hidden="true"><path data-bind="attr: { d: $root.icons['trend_' + trend()] }"></path></svg><span data-bind="text: $root.trendText(trend())"></span></div>
+      <!-- /ko -->
+      <!-- ko if: value() > max() -->
+      <div class="dashboardOffScale" title="{{ _('Temperature is off the scale. Adjust the maximum temperature in settings!') }}">!</div>
+      <!-- /ko -->
+    </div>
+    <!-- ko if: history() -->
+    <svg class="dashboardSpark" viewBox="0 0 180 22" preserveAspectRatio="none" aria-hidden="true">
+      <polyline data-bind="attr: { points: history() }, style: { stroke: color() }"></polyline>
+    </svg>
+    <!-- /ko -->
+  </div>
+</script>
+
+<!-- A progress ring or bar, with { label, value (percent), text } as data -->
+<script type="text/html" id="dashboard_progress">
+  <!-- ko if: $root.dashboardSettings.gaugetype() == 'circle' -->
+  <div class="dashboardRing" data-bind="attr: { title: label }">
+    <svg viewBox="0 0 120 120" role="img" data-bind="attr: { 'aria-label': label + ' ' + text }">
+      <circle class="dashboardTrack" cx="60" cy="60" r="50"></circle>
+      <circle class="dashboardArc" cx="60" cy="60" r="50" pathLength="100" transform="rotate(-90 60 60)"
+        data-bind="attr: { 'stroke-dasharray': $root.clampPercent(value) + ' 100' }, visible: $root.clampPercent(value) > 0"></circle>
+    </svg>
+    <div class="dashboardRingValue">
+      <span data-bind="text: text"></span>
+      <small data-bind="text: label"></small>
     </div>
   </div>
-  <div class="dashboardGridItem sysInfo">
-    <img class="dashboardIcon" title="{{ _('RAM Usage') }}" src="plugin/dashboard/static/img/ram-icon.png">
-    <span id="connectionInfo" title="{{ _('Ram Usage') }}" data-bind="text: virtualMemPercent() + '%'"></span>
+  <!-- /ko -->
+  <!-- ko if: $root.dashboardSettings.gaugetype() == 'bar' -->
+  <div class="dashboardProgressRow">
+    <div class="dashboardProgressRowText"><span data-bind="text: label"></span><strong data-bind="text: text"></strong></div>
+    <div class="dashboardBar"><i data-bind="style: { width: $root.clampPercent(value) + '%' }"></i></div>
   </div>
-  <div class="dashboardGridItem sysInfo">
-    <img class="dashboardIcon" title="{{ _('Disk Usage') }}" src="plugin/dashboard/static/img/hdd-icon.png">
-    <span id="stateInfo" title="{{ _('Disk Usage') }}" data-bind="text: diskUsagePercent() + '%'"></span>
+  <!-- /ko -->
+</script>
+
+<script type="text/html" id="dashboard_widget_systemInfo">
+  <div class="dashboardWidget">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'cpu' } --><!-- /ko -->
+      <span class="dashboardHeadName">{{ _('System') }}</span>
+      <span class="dashboardHeadRight" title="{{ _('CPU Frequency') }}" data-bind="text: cpuFreq() + ' MHz'"></span>
+    </div>
+    <div class="dashboardRows">
+      <div class="dashboardRow" title="{{ _('CPU Usage') }}">
+        <span class="dashboardRowKey">{{ _('CPU') }}</span>
+        <div class="dashboardBar"><i data-bind="style: { width: clampPercent(cpuPercent()) + '%' }"></i></div>
+        <span class="dashboardRowValue" data-bind="text: Math.round(cpuPercent()) + '%'"></span>
+      </div>
+      <div class="dashboardRow" title="{{ _('CPU Temperature') }}">
+        <span class="dashboardRowKey">{{ _('Temp') }}</span>
+        <div class="dashboardBar"><i data-bind="style: { width: clampPercent(cpuTemp()) + '%', background: cpuTempColor() }"></i></div>
+        <span class="dashboardRowValue" data-bind="text: Math.round(convertTemp(cpuTemp())) + tempSymbol(), style: { color: cpuTempColor() }"></span>
+      </div>
+      <div class="dashboardRow" title="{{ _('RAM Usage') }}">
+        <span class="dashboardRowKey">{{ _('RAM') }}</span>
+        <div class="dashboardBar"><i data-bind="style: { width: clampPercent(virtualMemPercent()) + '%' }"></i></div>
+        <span class="dashboardRowValue" data-bind="text: Math.round(virtualMemPercent()) + '%'"></span>
+      </div>
+      <div class="dashboardRow" title="{{ _('Disk Usage') }}">
+        <span class="dashboardRowKey">{{ _('Disk') }}</span>
+        <div class="dashboardBar"><i data-bind="style: { width: clampPercent(diskUsagePercent()) + '%' }"></i></div>
+        <span class="dashboardRowValue" data-bind="text: Math.round(diskUsagePercent()) + '%'"></span>
+      </div>
+    </div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_status">
-  <!-- Current Profile, Connection state, and current status-->
-  <div class="dashboardGridItem" printer>
-    <img class="dashboardIcon" title="{{ _('Printer profile') }}"
-      src="plugin/dashboard/static/img/printer-icon.png">
-    <span id="profileInfo" title="{{ _('Profile name') }}"
-      data-bind="text: printerProfilesModel.currentProfileData() != null ? printerProfilesModel.currentProfileData().name() : ''"></span>
-  </div>
-  <div class="dashboardGridItem" printer>
-    <img class="dashboardIcon" title="{{ _('Connection status') }}" src="plugin/dashboard/static/img/usb-icon.png">
-    <span id="connectionInfo" title="{{ _('Connection status') }}"
-      data-bind="text: formatConnectionstatus(connectionModel.isOperational()), style: { 'font-size': connectionModel.isOperational() ? '' : '18px' }"></span>
-  </div>
-  <div class="dashboardGridItem" printer>
-    <img class="dashboardIcon" title="{{ _('Printer status') }}" src="plugin/dashboard/static/img/status-icon.png">
-    <span id="stateInfo" title="{{ _('Printer status') }}" data-bind="text: printerStateModel.stateString()"></span>
+  <div class="dashboardStats">
+    <div class="dashboardStat" title="{{ _('Printer profile') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'printer' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Profile') }}</div>
+        <div class="dashboardStatValue" data-bind="text: printerProfilesModel.currentProfileData() != null ? printerProfilesModel.currentProfileData().name() : ''"></div>
+      </div>
+    </div>
+    <div class="dashboardStat" title="{{ _('Connection status') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'plug' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Connection') }}</div>
+        <div class="dashboardStatValue" data-bind="text: formatConnectionstatus(connectionModel.isOperational())"></div>
+      </div>
+    </div>
+    <div class="dashboardStat" title="{{ _('Printer status') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'state' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('State') }}</div>
+        <div class="dashboardStatValue" data-bind="text: printerStateModel.stateString()"></div>
+      </div>
+    </div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_jobControlButtons">
-  <!-- Job Control -->
-  <div class="dashboardGridItem jobControl">
-    <button class="btn btn-primary dashboardButton"
-      data-bind="click: printerStateModel.print, enable: printerStateModel.enablePrint, css: {'btn-danger': printerStateModel.isPaused()}, attr: {title: printerStateModel.titlePrintButton}"
-      id="job_print"><i class="fa"
-        data-bind="css: {'fa-print': !printerStateModel.isPaused(), 'fa-undo': printerStateModel.isPaused()}"></i>
-      <span data-bind="text: (printerStateModel.isPaused() ? '{{ _('Restart') }}' : '{{ _('Print') }}')">{{
-        _('Print') }}</span></button>
-  </div>
-
-  <div class="dashboardGridItem jobControl">
-    <button class="btn dashboardButton" id="job_pause"
-      data-bind="click: function() { printerStateModel.isPaused() ? printerStateModel.onlyResume() : printerStateModel.onlyPause(); }, enable: printerStateModel.enablePause, css: {active: printerStateModel.isPaused()}, attr: {title: printerStateModel.titlePauseButton}"><i
-        class="fa"
-        data-bind="css: {'fa-pause': !printerStateModel.isPaused(), 'fa-play': printerStateModel.isPaused()}"></i>
-      <span data-bind="visible: !printerStateModel.isPaused()">{{ _('Pause') }}</span><span
-        data-bind="visible: printerStateModel.isPaused()">{{ _('Resume') }}</span></button>
-  </div>
-  <div class="dashboardGridItem jobControl">
-    <button class="btn dashboardButton" id="job_cancel"
-      data-bind="click: jobCancel, enable: printerStateModel.enableCancel"
-      title="{{ _('Cancels the print job') }}"><i class="fa fa-stop"></i> <span>{{ _('Cancel') }}</span></button>
+  <div class="dashboardWidget">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'printer' } --><!-- /ko -->
+      <span class="dashboardHeadName">{{ _('Job') }}</span>
+      <span class="dashboardHeadRight" data-bind="text: printerStateModel.stateString()"></span>
+    </div>
+    <div class="dashboardButtons">
+      <button class="btn btn-primary dashboardButton" id="job_print"
+        data-bind="click: printerStateModel.print, enable: printerStateModel.enablePrint, css: {'btn-danger': printerStateModel.isPaused()}, attr: {title: printerStateModel.titlePrintButton}">
+        <i class="fa" data-bind="css: {'fa-print': !printerStateModel.isPaused(), 'fa-undo': printerStateModel.isPaused()}"></i>
+        <span data-bind="text: (printerStateModel.isPaused() ? '{{ _('Restart') }}' : '{{ _('Print') }}')">{{ _('Print') }}</span>
+      </button>
+      <button class="btn dashboardButton" id="job_pause"
+        data-bind="click: function() { printerStateModel.isPaused() ? printerStateModel.onlyResume() : printerStateModel.onlyPause(); }, enable: printerStateModel.enablePause, css: {active: printerStateModel.isPaused()}, attr: {title: printerStateModel.titlePauseButton}">
+        <i class="fa" data-bind="css: {'fa-pause': !printerStateModel.isPaused(), 'fa-play': printerStateModel.isPaused()}"></i>
+        <span data-bind="visible: !printerStateModel.isPaused()">{{ _('Pause') }}</span><span data-bind="visible: printerStateModel.isPaused()">{{ _('Resume') }}</span>
+      </button>
+      <button class="btn dashboardButton" id="job_cancel" data-bind="click: jobCancel, enable: printerStateModel.enableCancel"
+        title="{{ _('Cancels the print job') }}"><i class="fa fa-stop"></i> <span>{{ _('Cancel') }}</span></button>
+    </div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_tempGauges">
-  <!-- ko foreach: temperatureModel.tools -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge" data-bind="visible: $parent.temperatureModel.isOperational()
-      && (!$parent.dashboardSettings.hideHotend() || target() > 0)">
-    <img class="dashboardIcon" title="{{ _('Hotend temp (target temp)') }}" src="plugin/dashboard/static/img/hotend-icon.png">
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': $parent.tempGaugeViewBox()}">
-      <path class="bg" stroke="#ccc" data-bind="attr: { 'd': $parent.tempGaugeSvgPath() }" fill="none" />
-
-      <path class="tempCurrent" stroke="#08c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': $parent.formatTempOffset(actual(), $parent.dashboardSettings.hotendTempMax()),
-          'stroke':  $parent.tempColor(actual(), target()), 'd': $parent.tempGaugeSvgPath(), 'stroke-dasharray': $parent.tempGaugePathLen() }" />
-
-      <!-- ko foreach: $parent.tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parents[1].tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * $parents[1].dashboardSettings.hotendTempMax()), attr: { 'x': $parents[1].tempGaugeTickTextX($data), 'y': $parents[1].tempGaugeTickTextY($data) }"></text>
-
-      <!-- /ko -->
-
-      <path class="dashboard_threeQuarterGauge_target" stroke="black" fill="none" data-bind="attr: { 'stroke-dashoffset': $parent.formatTempOffset(target(), $parent.dashboardSettings.hotendTempMax()),
-          'd': $parent.tempGaugeSvgPath(), 'stroke-dasharray': $parent.tempGaugePathLen() }" />
-      <circle data-bind="visible: actual() > $parent.dashboardSettings.hotendTempMax()" cx="50%" cy="calc(50% - 32px)" r="8" fill="#ff6700">
-        <title>{{ _('Temperature is off the scale. Adjust the maximum temperature in settings!') }}</title>
-      </circle>
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: Math.round($parent.convertTemp(actual())) + $parent.tempSymbol()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: name()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: '{{ _('Target') }}: ' + $parent.convertTemp(target()) + $parent.tempSymbol() "></text>
-    </svg>
-  </div>
-  <!-- /ko -->
-  <!-- Bed temp -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge"
-    data-bind="visible: temperatureModel.isOperational() && temperatureModel.hasBed()">
-    <img class="dashboardIcon" title="{{ _('Bed temp (target temp)') }}"
-      src="plugin/dashboard/static/img/bed-icon.png">
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': tempGaugeViewBox()}">
-      <path class="bg" stroke="#ccc" fill="none" data-bind="attr: { 'd': tempGaugeSvgPath() }" />
-
-      <path class="tempCurrent" stroke="##08c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': formatTempOffset(temperatureModel.bedTemp.actual(), dashboardSettings.bedTempMax()), 'stroke':  tempColor(temperatureModel.bedTemp.actual(), temperatureModel.bedTemp.target()), 'd': tempGaugeSvgPath(), 'stroke-dasharray': tempGaugePathLen() }" />
-
-      <!-- ko foreach: tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parent.tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * $parent.dashboardSettings.bedTempMax()), attr: { 'x': $parent.tempGaugeTickTextX($data), 'y': $parent.tempGaugeTickTextY($data) }"></text>
-
-      <!-- /ko -->
-
-      <path class="dashboard_threeQuarterGauge_target" stroke="black" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': formatTempOffset(temperatureModel.bedTemp.target(), dashboardSettings.bedTempMax()), 'd': tempGaugeSvgPath(), 'stroke-dasharray': tempGaugePathLen() }" />
-      <circle data-bind="visible: temperatureModel.bedTemp.target() > dashboardSettings.bedTempMax()" cx="50%" cy="calc(50% - 32px)" r="8" fill="#ff6700">
-        <title>{{ _('Temperature is off the scale. Adjust the maximum temperature in settings!') }}</title>
-      </circle>
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: Math.round(convertTemp(temperatureModel.bedTemp.actual())) + tempSymbol()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: temperatureModel.bedTemp.name()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: '{{ _('Target') }}: ' + convertTemp(temperatureModel.bedTemp.target()) + tempSymbol() "></text>
-    </svg>
-  </div>
-  <!-- Chamber temp -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge"
-    data-bind="visible: temperatureModel.isOperational() && temperatureModel.hasChamber()">
-    <img class="dashboardIcon" title="{{ _('Chamber temp (target temp)') }}"
-      src="plugin/dashboard/static/img/chamber-icon.png">
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': tempGaugeViewBox()}">
-      <path class="bg" stroke="#ccc" fill="none" data-bind="attr: { 'd': tempGaugeSvgPath() }" />
-
-      <path class="tempCurrent" stroke="##08c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': formatTempOffset(temperatureModel.chamberTemp.actual(), dashboardSettings.chamberTempMax()),
-          'stroke':  tempColor(temperatureModel.chamberTemp.actual(), temperatureModel.chamberTemp.target()), 'd': tempGaugeSvgPath(), 'stroke-dasharray': tempGaugePathLen() }" />
-
-      <!-- ko foreach: tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parent.tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * $parent.dashboardSettings.chamberTempMax()), attr: { 'x': $parent.tempGaugeTickTextX($data), 'y': $parent.tempGaugeTickTextY($data) }"></text>
-
-      <!-- /ko -->
-
-      <path class="dashboard_threeQuarterGauge_target" stroke="black" fill="none" data-bind="attr: { 'stroke-dashoffset': formatTempOffset(temperatureModel.chamberTemp.target(), dashboardSettings.chamberTempMax()),
-          'd': tempGaugeSvgPath(), 'stroke-dasharray': tempGaugePathLen() }" />
-      <circle data-bind="visible: temperatureModel.chamberTemp.target() > dashboardSettings.chamberTempMax()" cx="50%" cy="calc(50% - 32px)" r="8" fill="#ff6700">
-        <title>{{ _('Temperature is off the scale. Adjust the maximum temperature in settings!') }}</title>
-      </circle>
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: Math.round(convertTemp(temperatureModel.chamberTemp.actual())) + tempSymbol()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: temperatureModel.chamberTemp.name()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: '{{ _('Target') }}: ' + convertTemp(temperatureModel.chamberTemp.target()) + tempSymbol() "></text>
-    </svg>
-  </div>
+  <div class="dashboardGauges" data-bind="template: { name: 'dashboard_gauge', foreach: heaterGauges }"></div>
 </script>
 
 <script type="text/html" id="dashboard_widget_fan">
-  <!-- Fan Speed -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge"
-    data-bind="visible: temperatureModel.isOperational()">
-    <img class="dashboardIcon" title="{{ _('Fan Speed') }}" src="plugin/dashboard/static/img/fan-icon.png">
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': tempGaugeViewBox()}">
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" title="{{ _('Fan Speed') }}" data-bind="text: formatFanText(fanSpeed())"></text>
-      <path class="bg" stroke="#ccc" fill="none" data-bind="attr: { 'd': tempGaugeSvgPath() }" />
-
-      <!-- ko foreach: tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parent.tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * 100), attr: { 'x': $parent.tempGaugeTickTextX($data), 'y': $parent.tempGaugeTickTextY($data) }"></text>
-
-      <!-- /ko -->
-
-      <path class="dashboardGauge" stroke="#09c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': formatFanOffset(fanSpeed()), 'd': tempGaugeSvgPath(), 'stroke-dasharray': tempGaugePathLen() }" />
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c">{{ _('Fan Speed') }}</text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c">{{ _('Fan') }}</text>
-    </svg>
-  </div>
+  <div class="dashboardGauges" data-bind="template: { name: 'dashboard_gauge', data: fanGauge }"></div>
 </script>
 
 <script type="text/html" id="dashboard_widget_sensorInfo">
-  <!-- Enclosure Sensors as 3/4 -->
-  <!-- ko if: enclosureViewModel && dashboardSettings.enclosureGaugeStyle() == "3/4" -->
-  <!-- ko foreach: enclosureViewModel.rpi_inputs_temperature_sensors() -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge">
-    <img class="dashboardIcon" data-bind="title: label + 'Sensor Info'"
-      src="plugin/dashboard/static/img/ambient-sensor-icon.png">
-
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': $parent.tempGaugeViewBox()}">
-      <path class="bg" stroke="#ccc" fill="none" data-bind="attr: { 'd': $parent.tempGaugeSvgPath() }" />
-      <path class="tempCurrent" stroke="#09c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': $parent.formatTempOffset(temp_sensor_temp(), $parent.dashboardSettings.chamberTempMax()), 'd': $parent.tempGaugeSvgPath(), 'stroke-dasharray': $parent.tempGaugePathLen() }" />
-
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: temp_sensor_temp() + (use_fahrenheit() ? '°F' : '°C')"
-        title="Ambient Temp Sensor"></text>
-      <!-- ko if: temp_sensor_humidity -->
-      <text class="dashboardGauge" font-size="30" x="50%" y="60%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: temp_sensor_humidity() + '%'" title="Ambient Humidity Sensor"></text>
-      <!-- /ko -->
-
-      <!-- ko foreach: $parent.tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parents[1].tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * $parents[1].dashboardSettings.chamberTempMax()), attr: { 'x': $parents[1].tempGaugeTickTextX($data), 'y': $parents[1].tempGaugeTickTextY($data) }"></text>
-      <!-- /ko -->
-
-      <circle data-bind="visible: temp_sensor_temp() > $parent.dashboardSettings.chamberTempMax()" cx="50%" cy="calc(50% - 32px)" r="8" fill="#ff6700">
-        <title>{{ _('Temperature is off the scale. Adjust the maximum temperature in settings!') }}</title>
-      </circle>
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: label"></text>
-    </svg>
-  </div>
+  <!-- ko if: dashboardSettings.enclosureGaugeStyle() == "3/4" -->
+  <div class="dashboardGauges" data-bind="template: { name: 'dashboard_gauge', foreach: sensorGauges }"></div>
   <!-- /ko -->
-  <!-- /ko -->
-  <!-- Enclosure Sensors -->
-  <!-- ko if: enclosureViewModel && dashboardSettings.enclosureGaugeStyle() == "text" -->
-  <!-- ko foreach: enclosureViewModel.rpi_inputs_temperature_sensors() -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge">
-    <img class="dashboardIcon" title="{{ _('Sensor temp (target temp)') }}"
-      src="plugin/dashboard/static/img/ambient-sensor-icon.png">
-    <div class="inline">
-      <span id="HumiditySensorInfo" data-bind="text: label, attr: {title: label}"></span><br />
-      <!-- ko if: use_fahrenheit -->
-      <span id="TempSensorInfo" title="{{ _('Ambient Temp Sensor') }}"
-        data-bind="text: temp_sensor_temp() + '°F'"></span>
-      <!-- /ko -->
-      <!-- ko ifnot: use_fahrenheit -->
-      <span id="TempSensorInfo" title="{{ _('Ambient Temp Sensor') }}"
-        data-bind="text: temp_sensor_temp() + '°C'"></span>
-      <!-- /ko -->
-      <!-- ko if: temp_sensor_humidity -->
-      <span class="dashboardSmall" id="HumiditySensorInfo" title="{{ _('Ambient Humidity Sensor') }}"
-        data-bind="text: temp_sensor_humidity() + '%'"></span>
-      <!-- /ko -->
+  <!-- ko if: dashboardSettings.enclosureGaugeStyle() == "text" && enclosureViewModel -->
+  <div class="dashboardStats" data-bind="foreach: enclosureViewModel.rpi_inputs_temperature_sensors()">
+    <div class="dashboardStat" data-bind="attr: { title: label }">
+      <!-- ko template: { name: 'dashboard_icon', data: 'thermometer' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey" data-bind="text: label"></div>
+        <div class="dashboardStatValue">
+          <span title="{{ _('Ambient Temp Sensor') }}" data-bind="text: temp_sensor_temp() + (use_fahrenheit() ? '°F' : '°C')"></span>
+          <!-- ko if: temp_sensor_humidity -->
+          <small title="{{ _('Ambient Humidity Sensor') }}" data-bind="text: temp_sensor_humidity() + '%'"></small>
+          <!-- /ko -->
+        </div>
+      </div>
     </div>
   </div>
-  <!-- /ko -->
   <!-- /ko -->
 </script>
 
 <script type="text/html" id="dashboard_widget_commandWidgets">
-  <!-- Cmd Widgets as 3/4 -->
-
-  <!-- ko foreach: commandWidgetArray -->
-  <!-- ko if: enabled() && $parent.castToWidgetTypes(type()) === $parent.widgetTypes.THREE_QUARTER -->
-  <div class="dashboardGridItem dashboard_threeQuarterGauge">
-    <img class="dashboardIcon" data-bind="attr: {'src': 'plugin/dashboard/static/img/' + icon(), 'title': name}" />
-    <svg xmlns="http://www.w3.org/2000/svg" height="140" width="140"
-      data-bind="attr: {'viewBox': $parent.tempGaugeViewBox()}">
-      <path class="bg" stroke="#ccc" fill="none" data-bind="attr: { 'd': $parent.tempGaugeSvgPath() }" />
-
-      <path class="tempCurrent" stroke="#09c" fill="none"
-        data-bind="attr: { 'stroke-dashoffset': $parent.formatTempOffset($parent.cmdResults()[$index()], $parent.dashboardSettings.chamberTempMax()), 'd': $parent.tempGaugeSvgPath(), 'stroke-dasharray': $parent.tempGaugePathLen() }" />
-
-      <!-- ko foreach: $parent.tempGaugeTicks()-->
-      <path class="dashboardTempTick" stroke-width="2px" fill="none"
-        data-bind="attr: { 'd': $parents[1].tempGaugeTickPath($data) }" />
-      <text class="dashboardTempTickNum" font-size="10" dominant-baseline="middle" text-anchor="middle" fill="#08c"
-        data-bind="text: Math.round($data * $parents[1].dashboardSettings.chamberTempMax()), attr: { 'x': $parents[1].tempGaugeTickTextX($data), 'y': $parents[1].tempGaugeTickTextY($data) }"></text>
-      <!-- /ko -->
-
-
-      <text class="dashboardGauge" font-size="30" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: Math.round($parent.convertTemp($parent.cmdResults()[$index()])) + $parent.tempSymbol()"></text>
-      <text class="dashboardGauge" font-size="20" x="50%" y="85%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: name"></text>
-    </svg>
-  </div>
-  <!-- /ko -->
-  <!-- /ko -->
-  <!-- Text Command Widgets -->
-  <!-- ko foreach: commandWidgetArray -->
-  <!-- ko if: enabled() && $parent.castToWidgetTypes(type()) === $parent.widgetTypes.TEXT -->
-  <div class="dashboardGridItem command">
-    <img class="dashboardIcon" data-bind="attr: {src: 'plugin/dashboard/static/img/' + icon(), title: name()}" />
-    <div class="inline">
-      <span data-bind="text: name(), attr: {title: name()}"></span>
-      <span class="dashboardSmall" title="{{_('Primary Command output')}}"
-        data-bind="text: $parent.cmdResults()[$index()]"></span><br />
-      <!-- <span class="dashboardSmall" data-bind="attr: { title: 'Secondary Command Output' }, text: $parent.cmdResults()[$index()][1]"></span> -->
+  <!-- Dials -->
+  <div class="dashboardGauges" data-bind="template: { name: 'dashboard_gauge', foreach: commandGauges }"></div>
+  <!-- Text -->
+  <div class="dashboardStats" data-bind="foreach: commandWidgetArray">
+    <!-- ko if: enabled() && $parent.castToWidgetTypes(type()) === $parent.widgetTypes.TEXT -->
+    <div class="dashboardStat" data-bind="attr: { title: name() }">
+      <!-- ko template: { name: 'dashboard_icon', data: $parent.commandIcon(icon()) } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey" data-bind="text: name()"></div>
+        <div class="dashboardStatValue" title="{{_('Primary Command output')}}" data-bind="text: $parent.cmdResults()[$index()]"></div>
+      </div>
     </div>
+    <!-- /ko -->
   </div>
-  <!-- /ko -->
-  <!-- /ko -->
-  <div class="progressContainer" data-bind="visible: dashboardSettings.gaugetype() == 'circle'">
-  <!-- Progress Command Widgets -->
-  <!-- ko foreach: commandWidgetArray -->
-  <!-- ko if: enabled() && $parent.castToWidgetTypes(type()) === $parent.widgetTypes.PROGRESS -->
-  <div class="dashboardProgressContainer dashboardProgressInline">
-    <svg class="current" width="120" height="120" viewBox="0 0 120 120">
-      <circle cx="60" cy="60" r="54" fill="none" stroke="#ccc" stroke-width="12" />
-      <circle class="dashboardGauge" cx="60" cy="60" r="54" fill="none" stroke="#09c" stroke-width="12"
-        stroke-dasharray="339.292" transform="rotate(-90 60 60)"
-        data-bind="attr: {'stroke-dashoffset': $parent.formatProgressOffset($parent.cmdResults()[$index()]*100.0)}" />
-      <text class="dashboardGauge" font-size="30" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle"
-        fill="#08c" data-bind="text: $parent.formatPercentage($parent.cmdResults()[$index()]*100.0)"></text>
-      <text class="dashboardGauge" font-size="14" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-        data-bind="text: name" fill="#08c">{{_('Cmd Widget Progress')}}</text>
-    </svg>
-  </div>
-  <!-- /ko -->
-  <!-- /ko -->
-  </div>
-  <!-- Progress Bars -->
-  <!-- ko foreach: commandWidgetArray -->
-  <!-- ko if: enabled() && $parent.castToWidgetTypes(type()) === $parent.widgetTypes.PROGRESS -->
-  <div class="dashboardGridItem dashboardProgressBar" style="text-align:center;"
-    data-bind="visible: $parent.dashboardSettings.gaugetype() == 'bar'">
-    <span title="{{_('Cmd Widget Progress')}}" data-bind="text: name()"></span>
-    <span
-      data-bind="attr: { title: ' ' + gettext('progress')}, text: ' ' + $parent.formatPercentage($parent.cmdResults()[$index()] * 100.0)"></span>
-    <svg preserveAspectRatio="none" style="width: 100%; height: 15px;" viewBox="0 0 339.292 20">
-      <path class="bg" stroke="#ccc" d="M0 10, 339.292 10"></path>
-      <path class="dashboardGauge" stroke="#09c" d="M0 10, 339.292 10" stroke-dasharray="339.292"
-        data-bind="attr: { 'stroke-dashoffset': $parent.formatProgressOffset($parent.cmdResults()[$index()] * 100.0) }">
-      </path>
-    </svg>
-  </div>
-  <!-- /ko -->
-  <!-- /ko -->
+  <!-- Progress -->
+  <div class="dashboardRings" data-bind="template: { name: 'dashboard_progress', foreach: commandProgress }"></div>
 </script>
 
 <script type="text/html" id="dashboard_widget_printerMessage">
-  <!-- Printer Message-->
-  <div class="dashboardGridItem printerMessage">
-    <br />
-    <span id="printerMessage" title="{{ _('M117 Printer message') }}"
-      data-bind="text: '{{ _('Msg: ') }}' + printerMessage()"></span>
-    <br />
+  <div class="dashboardStat dashboardMessage" title="{{ _('M117 Printer message') }}">
+    <!-- ko template: { name: 'dashboard_icon', data: 'message' } --><!-- /ko -->
+    <div>
+      <div class="dashboardStatKey">{{ _('Printer message') }}</div>
+      <div class="dashboardStatValue" id="printerMessage" data-bind="text: printerMessage() || '–'"></div>
+    </div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_progressGauges">
-  <div class="progressContainer"
-    data-bind="visible: dashboardSettings.gaugetype() == 'circle'">
-    <div>
-      <!-- Time Progress Circle-->
-      <div class="dashboardProgressContainer dashboardProgressInline" data-bind="visible: dashboardSettings.showTimeProgress()
-              && (dashboardSettings.gaugetype() == 'circle')">
-        <svg class="current" width="120" height="120" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="#ccc" stroke-width="12" />
-          <circle class="dashboardGauge" cx="60" cy="60" r="54" fill="none" stroke="#09c" stroke-width="12"
-            stroke-dasharray="339.292" transform="rotate(-90 60 60)"
-            data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(timeProgressString()) }" />
-          <text class="dashboardGauge" font-size="30" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c" data-bind="text: timeProgressBarString()"></text>
-          <text class="dashboardGauge" font-size="14" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-            data-bind="text: dashboardSettings.showProgress() ? '{{_('Time')}}' : '{{_('Job')}}'"
-            fill="#08c">{{_('Time')}}</text>
-        </svg>
-      </div>
-      <!-- GCode Progress Circle-->
-      <div class="dashboardProgressContainer dashboardProgressInline" data-bind="visible: dashboardSettings.showProgress()
-              && (dashboardSettings.gaugetype() == 'circle')">
-        <svg class="current" width="120" height="120" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="#ccc" stroke-width="12" />
-          <circle class="dashboardGauge" cx="60" cy="60" r="54" fill="none" stroke="#09c" stroke-width="12"
-            stroke-dasharray="339.292" transform="rotate(-90 60 60)"
-            data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(printerStateModel.progressString()) }" />
-          <text class="dashboardGauge" font-size="30" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c"
-            data-bind="text: (printerStateModel.progressBarString() ? printerStateModel.progressBarString() : '0%')"></text>
-          <text class="dashboardGauge" font-size="14" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-            data-bind="text: dashboardSettings.showTimeProgress() ? '{{_('GCode')}}' : '{{_('Job')}}'"
-            fill="#08c">{{_('GCode')}}</text>
-        </svg>
-      </div>
-      <!-- Height Progress Circle-->
-      <div class="dashboardProgressContainer dashboardProgressInline" data-bind="visible: dashboardSettings.showHeightProgress()
-              && (dashboardSettings.gaugetype() == 'circle')">
-        <svg class="current" width="120" height="120" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="#ccc" stroke-width="12" />
-          <circle class="dashboardGauge" cx="60" cy="60" r="54" fill="none" stroke="#09c" stroke-width="12"
-            stroke-dasharray="339.292" transform="rotate(-90 60 60)"
-            data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(heightProgressString()) }" />
-          <text class="dashboardGauge" font-size="30" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c" data-bind="text: heightProgressBarString()"></text>
-          <text class="dashboardGauge" font-size="14" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c">{{_('Height')}}</text>
-        </svg>
-      </div>
-      <!-- Layer Progress Circle-->
-      <div class="dashboardProgressContainer dashboardLayerProgressContainer dashboardProgressInline" data-bind="visible: dashboardSettings.showLayerProgress()
-              && (dashboardSettings.gaugetype() == 'circle'), style: {opacity: layerAnalysisError() ? 0.2 : 1}">
-        <svg class="current" width="120" height="120" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="#ccc" stroke-width="12" />
-          <circle class="dashboardGauge" cx="60" cy="60" r="54" fill="none" stroke="#09c" stroke-width="12"
-            stroke-dasharray="339.292" transform="rotate(-90 60 60)"
-            data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(layerProgress()) }" />
-          <text class="dashboardGauge" font-size="30" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c" data-bind="text: layerProgress() + '%'"></text>
-          <text class="dashboardGauge" font-size="14" x="50%" y="65%" dominant-baseline="middle" text-anchor="middle"
-            fill="#08c">{{_('Layer')}}</text>
-        </svg>
-      </div>
-
-    </div>
-  </div>
-  <!-- SVG Time Progress Bar-->
-  <div class="dashboardGridItem dashboardProgressBar" style="text-align:center;" data-bind="visible: dashboardSettings.gaugetype() == 'bar'
-      && dashboardSettings.showTimeProgress()">
-    <span data-bind="text: dashboardSettings.showProgress() ? '{{ _('Time') }}' : '{{ _('Job') }}'"
-      title="{{ _('Job Progress') }}">{{_('Time')}}</span>
-    <span title="{{ _('Printer status') }}" data-bind="text: timeProgressBarString()"></span>
-    <svg preserveAspectRatio="none" style="width: 100%; height: 15px;" viewBox="0 0 339.292 20">
-      <path class="bg" stroke="#ccc" d="M0 10, 339.292 10"></path>
-      <path class="dashboardGauge" stroke="#09c" d="M0 10, 339.292 10" stroke-dasharray="339.292"
-        data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(timeProgressString()) }"></path>
-    </svg>
-  </div>
-
-  <!-- SVG GCode Progress Bar-->
-  <div class="dashboardGridItem dashboardProgressBar" style="text-align:center;" data-bind="visible: dashboardSettings.gaugetype() == 'bar'
-      && dashboardSettings.showProgress()">
-    <span data-bind="text: dashboardSettings.showTimeProgress() ? 'GCode' : 'Job'"
-      title="{{_('GCode Progress')}}">{{_('GCode')}}</span>
-    <span title="{{ _('Printer status') }}"
-      data-bind="text: (printerStateModel.progressBarString() ? printerStateModel.progressBarString() : '0%')"></span>
-    <svg preserveAspectRatio="none" style="width: 100%; height: 15px;" viewBox="0 0 339.292 20">
-      <path class="bg" stroke="#ccc" d="M0 10, 339.292 10"></path>
-      <path class="dashboardGauge" stroke="#09c" d="M0 10, 339.292 10" stroke-dasharray="339.292"
-        data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(printerStateModel.progressString()) }"></path>
-    </svg>
-  </div>
-
-  <!-- SVG Height Progress Bar-->
-  <div class="dashboardGridItem dashboardProgressBar" style="text-align:center;" data-bind="visible: dashboardSettings.gaugetype() == 'bar'
-      && dashboardSettings.showHeightProgress()">
-    <span title="{{_('Height Progress')}}">{{_('Height')}}</span>
-    <span title="{{ _('Printer status') }}" data-bind="text: heightProgressBarString()"></span>
-    <svg preserveAspectRatio="none" style="width: 100%; height: 15px;" viewBox="0 0 339.292 20">
-      <path class="bg" stroke="#ccc" d="M0 10, 339.292 10"></path>
-      <path class="dashboardGauge" stroke="#09c" d="M0 10, 339.292 10" stroke-dasharray="339.292"
-        data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(heightProgressString()) }"></path>
-    </svg>
-  </div>
-
-  <!-- SVG Layer Progress Bar-->
-  <div class="dashboardGridItem dashboardProgressBar" style="text-align:center;" data-bind="visible: dashboardSettings.gaugetype() == 'bar' && dashboardSettings.showLayerProgress()">
-    <span title="{{ _('Layer Progress') }}">{{_('Layer')}}</span>
-    <span title="{{ _('Printer status') }}" data-bind="text: layerProgress() + '%'"></span>
-    <svg preserveAspectRatio="none" style="width: 100%; height: 15px;" viewBox="0 0 339.292 20">
-      <path class="bg" stroke="#ccc" d="M0 10, 339.292 10"></path>
-      <path class="dashboardGauge" stroke="#09c" d="M0 10, 339.292 10" stroke-dasharray="339.292"
-        data-bind="attr: { 'stroke-dashoffset': formatProgressOffset(layerProgress()) }"></path>
-    </svg>
-  </div>
+  <div class="dashboardRings" data-bind="css: { dashboardRingsBars: dashboardSettings.gaugetype() == 'bar' }, template: { name: 'dashboard_progress', foreach: progressItems }"></div>
 </script>
 
 <script type="text/html" id="dashboard_widget_layerGraph">
-  <!-- Layer Times Graph-->
-  <div class="dashboardGridItem layerTimes" data-bind="style: {opacity: layerAnalysisError() ? 0.2 : 1}">
-    <span title="{{ _('Layer Durations (seconds/layer)') }}">{{ _('Layer Durations') }}</span>
-    <div class="ct-chart"></div>
+  <div class="dashboardWidget layerTimes" data-bind="style: { opacity: layerAnalysisError() ? 0.35 : 1 }">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'clock' } --><!-- /ko -->
+      <span class="dashboardHeadName" title="{{ _('Layer Durations (seconds/layer)') }}">{{ _('Layer Durations') }}</span>
+      <span class="dashboardHeadRight" data-bind="text: layerGraphSummary()"></span>
+    </div>
+    <div class="dashboardEmpty" data-bind="visible: layerTimes().length == 0">{{ _('The layer durations appear here once the first layer is printed.') }}</div>
+    <div class="dashboardLayerBars" data-bind="visible: layerTimes().length > 0, css: { dashboardLayerBarsScroll: dashboardSettings.layerGraphType() == 'scrolling' }">
+      <svg preserveAspectRatio="none" role="img" aria-label="{{ _('Layer Durations (seconds/layer)') }}"
+        data-bind="attr: { viewBox: '0 0 ' + layerBars().width + ' 100' }, style: { width: layerBars().cssWidth }">
+        <!-- ko foreach: layerBars().bars -->
+        <rect data-bind="attr: { x: x, y: y, width: w, height: h }, css: { current: current }"><title data-bind="text: title"></title></rect>
+        <!-- /ko -->
+      </svg>
+    </div>
+    <div class="dashboardAxis" data-bind="visible: layerTimes().length > 0"><span data-bind="text: layerBars().first"></span><span data-bind="text: layerBars().last"></span></div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_fileName">
-  <!-- File name -->
-  <div class="dashboardGridItem file">
-    <img class="dashboardIcon" src="plugin/dashboard/static/img/file-icon.png">
-    <span id="fileInfo" title="{{ _('File') }}" data-bind="text: printerStateModel.filedisplay()"></span>
+  <div class="dashboardStat file" data-bind="attr: { title: printerStateModel.filedisplay() }">
+    <!-- ko template: { name: 'dashboard_icon', data: 'file' } --><!-- /ko -->
+    <div>
+      <div class="dashboardStatKey">{{ _('File') }}</div>
+      <div class="dashboardStatValue" id="fileInfo" data-bind="text: printerStateModel.filedisplay() || '–'"></div>
+    </div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_printThumbnail">
-  <div class="dashboardGridItem thumbnailContainer">
-
-  </div>
+  <div class="dashboardGridItem thumbnailContainer"></div>
 </script>
 
 <script type="text/html" id="dashboard_widget_filament">
-  <!-- GCode -->
-  <div class="dashboardGridItem gcode">
-    <img class="dashboardIcon" title="{{ _('Extruded Filament') }}"
-      src="plugin/dashboard/static/img/filament-icon.png">
-    <span id="stateInfo" title="{{ _('Extruded Filament') }}" data-bind="text: extrudedFilament() + 'm' "></span>
-  </div>
-  <div class="dashboardGridItem gcode" data-bind="if: dashboardSettings.showFilamentChangeTime">
-    <img class="dashboardIcon" title="{{ _('Time to Next Filament Change') }}"
-      src="plugin/dashboard/static/img/filament-change-icon.png">
-    <span id="stateInfo" title="{{ _('Time to Next Filament Change') }}" data-bind="text: timeToNextChange()"></span>
+  <div class="dashboardWidget">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'spool' } --><!-- /ko -->
+      <span class="dashboardHeadName">{{ _('Filament') }}</span>
+    </div>
+    <div title="{{ _('Extruded Filament') }}"><span class="dashboardBig" data-bind="text: Number(extrudedFilament()).toFixed(2)"></span> <span class="dashboardUnit">m</span></div>
+    <!-- ko if: dashboardSettings.showFilamentChangeTime -->
+    <div class="dashboardSmall" title="{{ _('Time to Next Filament Change') }}">{{ _('Next change') }}: <span data-bind="text: timeToNextChange()"></span></div>
+    <!-- /ko -->
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_feedrate">
-  <div class="dashboardGridItem dashboardFeedrate">
-    <img class="dashboardIcon" title="{{ _('Feedrate') }}" src="plugin/dashboard/static/img/speed-icon.png">
-    <svg width="120" height="50" v-else-if="type == 4" style="transform-origin: top left;" viewBox="-10 0 140 50">
-      <title>Feedrate</title>
-      <text x="8" y="50" text-anchor="end" style="font: 10px sans-serif;">0</text>
-      <text x="112" y="50" style="font: 10px sans-serif;" data-bind="text: dashboardSettings.feedrateMax">400</text>
-      <g fill-opacity="0" stroke-width="16">
-        <path d="M22 50a38 38 0 1 1 76 0" stroke="#EBEDF8"></path>
-        <path id="dashboardFeedrate5Avg" d="M22 50a38 38 0 1 1 76 0" stroke="#7289da" stroke-dasharray="120"
-          stroke-dashoffset="120" style="transition: stroke-dashoffset 1s;"
-          data-bind="attr: { 'stroke-dashoffset': Math.abs((feedrateAvLastFiveSeconds() / dashboardSettings.feedrateMax()) * 120 - 120)}">
-        </path>
-        <path id="dashboardFeedrateAvg" d="M16 50a44 44 0 1 1 88 0" stroke="#85c6c6" stroke-dasharray="138.2"
-          stroke-dashoffset="138.2" style="transition: stroke-dashoffset 1s; stroke-width:4;"
-          data-bind="attr: { 'stroke-dashoffset': Math.abs((feedrateAv() / dashboardSettings.feedrateMax()) * 138.2 - 138.2)}">
-        </path>
-        <circle r="1.5" cx="60" cy="48.5" fill="#000000" fill-opacity="1" stroke-width="0"></circle>
-        <path id="dashboardFeedrateLive" d="M 58.5,48.5 60,25 61.5,48.5 Z" fill="#000000" fill-opacity="1"
-          stroke-width="0" style="transform: rotate(-90deg);transition: transform 1s;transform-origin: 60px 48.5px;"
-          data-bind="style: { transform: 'rotate(' + (dashboardSettings.feedrateMax() == 0 ? -90 : (feedrate() / dashboardSettings.feedrateMax()) * 180 - 90) + 'deg)'}">
-        </path>
-        <path d="M 10,50 10,49 30,49 30,50 Z" fill="#EBEDF8" fill-opacity="1" stroke-width="0"></path>
-        <path d="M 110,50 110,49 90,49 90,50 Z" fill="#EBEDF8" fill-opacity="1" stroke-width="0"></path>
-      </g>
-    </svg>
+  <div class="dashboardWidget dashboardFeedrate">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'speed' } --><!-- /ko -->
+      <span class="dashboardHeadName">{{ _('Feedrate') }}</span>
+    </div>
+    <div><span class="dashboardBig" data-bind="text: Math.round(feedrate())"></span> <span class="dashboardUnit">mm/s</span></div>
+    <div class="dashboardSmall">
+      <span title="{{ _('Average of the last 5 seconds') }}">{{ _('5 s avg') }} <span data-bind="text: Math.round(feedrateAvLastFiveSeconds())"></span></span> ·
+      <span title="{{ _('Average of the print') }}">{{ _('print avg') }} <span data-bind="text: Math.round(feedrateAv())"></span></span>
+    </div>
+    <div class="dashboardBar"><i data-bind="style: { width: clampPercent(dashboardSettings.feedrateMax() > 0 ? feedrate() / dashboardSettings.feedrateMax() * 100 : 0) + '%' }"></i></div>
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_timeEstimate">
-  <!-- Times -->
-  <div class="dashboardGridItem times">
-    <img class="dashboardIcon" title="{{ _('Estimated total print time') }}"
-      src="plugin/dashboard/static/img/print-time-estimated-icon.png">
-    <span class="dashboardLarge" id="printTimeEstimated" title="{{ _('Estimated total print time') }}"
-      data-bind="text: printerStateModel.estimatedPrintTimeString()"></span>
-  </div>
-  <div class="dashboardGridItem times" data-bind="visible: printerStateModel.isPrinting()">
-    <img class="dashboardIcon" title="{{ _('ETA') }}" src="plugin/dashboard/static/img/eta-icon.png">
-    <div class="inline">
-      <span class="dashboardLarge" id="eta" title="{{ _('ETA') }}"
-        data-bind="text: getEta(printerStateModel.printTimeLeft())"></span><br />
-      <span class="dashboardSmall" id="printTimeLeft" title="{{ _('Estimated time left') }}"
-        data-bind="text: printerStateModel.printTimeLeftString() + ' left'"></span>
+  <div class="dashboardStats">
+    <div class="dashboardStat" title="{{ _('Estimated total print time') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'estimate' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Estimated') }}</div>
+        <div class="dashboardStatValue" id="printTimeEstimated" data-bind="text: printerStateModel.estimatedPrintTimeString() || '–'"></div>
+      </div>
     </div>
-  </div>
-  <div class="dashboardGridItem times" data-bind="visible: printerStateModel.isPrinting()">
-    <img class="dashboardIcon" title="{{ _('Current print time') }}"
-      src="plugin/dashboard/static/img/print-time-done-icon.png">
-    <span class="dashboardLarge" id="printTimeDone" title="{{ _('Current print time') }}"
-      data-bind="text: printerStateModel.printTimeString()"></span>
+    <!-- ko if: printerStateModel.isPrinting() -->
+    <div class="dashboardStat" title="{{ _('Current print time') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'clock' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Elapsed') }}</div>
+        <div class="dashboardStatValue" id="printTimeDone" data-bind="text: printerStateModel.printTimeString()"></div>
+      </div>
+    </div>
+    <div class="dashboardStat" title="{{ _('Estimated time left') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'hourglass' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Left') }}</div>
+        <div class="dashboardStatValue" id="printTimeLeft" data-bind="text: printerStateModel.printTimeLeftString()"></div>
+      </div>
+    </div>
+    <div class="dashboardStat" title="{{ _('ETA') }}">
+      <!-- ko template: { name: 'dashboard_icon', data: 'flag' } --><!-- /ko -->
+      <div>
+        <div class="dashboardStatKey">{{ _('Done at') }}</div>
+        <div class="dashboardStatValue" id="eta" data-bind="text: getEta(printerStateModel.printTimeLeft())"></div>
+      </div>
+    </div>
+    <!-- /ko -->
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_layerInfo">
-  <!-- Job & Progress -->
-  <div class="dashboardGridItem layerProgress"
-    data-bind="style: {opacity: layerAnalysisError() ? 0.2 : 1}">
-    <img class="dashboardIcon" title="{{ _('Current Layer') }}" src="plugin/dashboard/static/img/layers-icon.png"
-      alt="scroll to view more than forty layers">
-    <span id="currentLayer" title="{{ _('Current Layer') }}" data-bind="text: currentLayer"></span>
-    <span class="dashboardSmall" id="totalLayer" title="{{ _('Total Layers') }}"
-      data-bind="text: '/' + (parseInt(totalLayer()) - 1) + ' layers'"></span>
-  </div>
-  <div class="dashboardGridItem layerProgress" data-bind="visible: printerStateModel.isPrinting()">
-    <img class="dashboardIcon" title="{{ _('Current height') }}" src="plugin/dashboard/static/img/height-icon.png">
-    <span id="currentHeight" title="{{ _('Current Height') }}" data-bind="text: currentHeight"></span>
-    <span class="dashboardSmall" id="totalHeight" title="{{ _('Total Height') }}"
-      data-bind="text: '/' + totalHeight() + 'mm', style: {opacity: layerAnalysisError() ? 0.2 : 1}"></span>
-  </div>
-  <div class="dashboardGridItem layerProgress" data-bind="visible: printerStateModel.isPrinting()">
-    <img class="dashboardIcon" title="{{ _('Layer Time') }}"
-      src="plugin/dashboard/static/img/layer-time-average-icon.png">
-    <span id="averageLayerDuration" title="{{ _('Average Layer Time') }}"
-      data-bind="text: formatSeconds(averageLayerDuration())"></span>
+  <div class="dashboardWidget layerProgress" data-bind="style: { opacity: layerAnalysisError() ? 0.35 : 1 }">
+    <div class="dashboardHead">
+      <!-- ko template: { name: 'dashboard_icon', data: 'layers' } --><!-- /ko -->
+      <span class="dashboardHeadName" title="{{ _('Current Layer') }}">{{ _('Layer') }}</span>
+      <span class="dashboardHeadRight" title="{{ _('Average Layer Time') }}" data-bind="visible: printerStateModel.isPrinting(), text: '⌀ ' + formatSeconds(averageLayerDuration())"></span>
+    </div>
+    <div><span class="dashboardBig" id="currentLayer" data-bind="text: currentLayer"></span> <span class="dashboardUnit" id="totalLayer" title="{{ _('Total Layers') }}" data-bind="text: '/ ' + (parseInt(totalLayer()) - 1 || '–')"></span></div>
+    <div class="dashboardBar"><i data-bind="style: { width: clampPercent(layerProgress()) + '%' }"></i></div>
+    <!-- ko if: printerStateModel.isPrinting() -->
+    <div class="dashboardSmall" title="{{ _('Current height') }}">
+      {{ _('Height') }} <strong id="currentHeight" data-bind="text: currentHeight"></strong> / <span id="totalHeight" data-bind="text: totalHeight() + ' mm'"></span>
+    </div>
+    <!-- /ko -->
   </div>
 </script>
 
 <script type="text/html" id="dashboard_widget_webcam">
-  <!-- Webcam -->
   <!-- ko if: webcam_perm -->
   <div id="dashboard_webcam_container">
     <div id="dashboard_webcam_toggle" data-bind="visible: webcamHlsEnabled() || webcamMjpgEnabled()">
-      <div data-bind="foreach: dashboardSettings._webcamArray(), visible: dashboardSettings.enableDashMultiCam()">
-        <input class="cameraStreamIcon" type="image" src="plugin/dashboard/static/img/webcam-icon.png"
-          data-bind="attr: { title: name }, click: $parent.switchWebcam.bind( $index()+1 )" />
+      <div class="dashboardCamButtons" data-bind="foreach: dashboardSettings._webcamArray(), visible: dashboardSettings.enableDashMultiCam()">
+        <button type="button" class="dashboardIconButton cameraStreamIcon" data-bind="attr: { title: name }, click: $parent.switchWebcam.bind( $index()+1 )">
+          <!-- ko template: { name: 'dashboard_icon', data: 'camera' } --><!-- /ko -->
+        </button>
       </div>
 
       <div id="dashboard_webcam_hls_container" tabindex="0" data-bind="visible: webcamHlsEnabled()" style="">

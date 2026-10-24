@@ -85,10 +85,7 @@ $(function () {
         self.accentColor = ko.observable("#08c");
         self.textColor = ko.observable("#000");
 
-        // 3/4 Gauge Rendering vars
-        self.tempGaugeAngle = ko.observable(260);
-        self.tempGaugeRadius = ko.observable(77);
-        self.tempGaugeOffset = ko.observable(53);
+        // Temperature gauge ticks, as fractions of the scale
         self.tempGaugeTicks = ko.observableArray([0.0, 0.25, 0.5, 0.75, 1.0]);
 
         self.admin = ko.observableArray(false);
@@ -103,8 +100,6 @@ $(function () {
 
         self.hls;
 
-        //Scale down the file name if it is too long to fit one line, set up when the file name widget is rendered
-        self.fitties = [];
 
         //Fullscreen
         self.urlParams = new URLSearchParams(window.location.search);
@@ -112,8 +107,9 @@ $(function () {
 
         self.bindingDone = false;
 
-        self.layerGraph = null;
-        self.layerGraphData = null;
+        // Layer durations in seconds and their layer numbers, for the layer graph
+        self.layerTimes = ko.observableArray([]);
+        self.layerTimeLabels = ko.observableArray([]);
 
         self.currentTab = '';
 
@@ -980,12 +976,6 @@ $(function () {
                         self._switchWebcam(self.webcamState());
                     }
                     break;
-                case "layerGraph":
-                    self.createLayerGraph();
-                    break;
-                case "fileName":
-                    self.fitties = fitty("#fileInfo", { minSize: 2, maxSize: 20 });
-                    break;
                 case "printThumbnail":
                     self.updatePrintThumbnail();
                     break;
@@ -1213,90 +1203,318 @@ $(function () {
             return eta;
         };
 
-        // --- 3/4 Gague Tick code ---
-        self.tempGaugeSvgPath = ko.computed(() => {
-            a = Math.PI / 180 * (360 - self.tempGaugeAngle()) / 2;
-            offset = self.tempGaugeOffset();
-            radius = self.tempGaugeRadius();
-            leftX = (radius - radius * Math.sin(a) + offset).toFixed(2);
-            leftY = (offset + radius + radius * Math.cos(a)).toFixed(2);
-            rightX = (2 * radius * Math.sin(a)).toFixed(2);
-            rightY = 0;
+        // --- Icons ---
+        // 24px line icons, drawn with the text color of the theme. Command widgets name a PNG file, mapped below.
+        self.icons = {
+            nozzle: "M8 3h8v6H8zM6 9h12v5H6zM10 14h4l-1 4h-2zM12 20.5v.5",
+            bed: "M3 16h18v3H3zM8 5c-1.5 1.7 1.5 3.3 0 5.5M12 5c-1.5 1.7 1.5 3.3 0 5.5M16 5c-1.5 1.7 1.5 3.3 0 5.5",
+            chamber: "M4 4h16v16H4zM12 8v5.5M14 15.5a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
+            fan: "M10 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0M12 10c-.5-3.5 1-6 3.5-6s3 3.5-1.5 6M14 12.5c3 1.5 4.5 4.5 2.5 6.5s-4.5-1-4.5-5M10 12.5c-3 2-6 1.5-6.5-1s3-3.5 6.5-1.5",
+            spool: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 3v6M12 15v6",
+            layers: "M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5",
+            height: "M12 20V5M8 9l4-4 4 4M5 21h14M5 3h14",
+            speed: "M4.5 17a8.5 8.5 0 1 1 15 0M12 15l4.5-5M11 15a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
+            clock: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 7v5l3.5 2",
+            cpu: "M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4",
+            camera: "M3 7.5h4l2-3h6l2 3h4V19H3zM9 13a3 3 0 1 0 6 0a3 3 0 1 0-6 0",
+            layout: "M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z",
+            fullscreen: "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5",
+            window: "M3 5h18v14H3zM3 9h18M6 7h.01M8.5 7h.01",
+            file: "M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6",
+            printer: "M7 9V4h10v5M6 18H4v-7h16v7h-2M7 14h10v6H7z",
+            plug: "M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5",
+            state: "M3 12h4l3-8 4 16 3-8h4",
+            thermometer: "M10 14.5V5a2 2 0 1 1 4 0v9.5a3.5 3.5 0 1 1-4 0zM12 11v6",
+            message: "M4 5h16v11H9l-5 4z",
+            estimate: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 8v4M12 16h.01",
+            hourglass: "M7 3h10M7 21h10M8 3v3l4 6-4 6v3M16 3v3l-4 6 4 6v3",
+            flag: "M5 21V4M5 4h11l-2 4 2 4H5",
+            command: "M4 5h16v14H4zM7 10l3 2-3 2M12 15h5",
+            light: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z",
+            bolt: "M13 3L5 14h6l-1 7 8-11h-6z",
+            memory: "M4 8h16v8H4zM8 8v8M12 8v8M16 8v8M6 16v3M18 16v3",
+            disk: "M4 6h16v12H4zM4 14h16M16 16.5h.01",
+            trend_up: "M12 19V5M6 11l6-6 6 6",
+            trend_down: "M12 5v14M6 13l6 6 6-6",
+            trend_stable: "M5 12h14"
+        };
 
-            return `M${leftX} ${leftY}a${radius} ${radius} 0 1 1 ${rightX} ${rightY}`;
+        var commandIcons = {
+            "command-icon.png": "command",
+            "sensor-icon.png": "thermometer",
+            "ambient-sensor-icon.png": "thermometer",
+            "light-icon.png": "light",
+            "flash-icon.png": "bolt",
+            "cpu-icon.png": "cpu",
+            "ram-icon.png": "memory",
+            "hdd-icon.png": "disk",
+            "filament-icon.png": "spool",
+            "chamber-icon.png": "chamber"
+        };
+
+        self.commandIcon = function (png) {
+            return commandIcons[png] || "command";
+        };
+
+        // --- Gauges ---
+        // A 270 degree arc in a 120 x 96 view box, from -135 (bottom left) to 135 degrees (bottom right)
+        var gaugePolar = function (radius, angle) {
+            return [60 + radius * Math.sin(angle * Math.PI / 180), 54 - radius * Math.cos(angle * Math.PI / 180)];
+        };
+
+        var gaugeArcPath = function (from, to) {
+            var start = gaugePolar(46, from);
+            var end = gaugePolar(46, to);
+            return "M" + start[0].toFixed(2) + " " + start[1].toFixed(2) + " A46 46 0 " + (to - from > 180 ? 1 : 0) + " 1 " + end[0].toFixed(2) + " " + end[1].toFixed(2);
+        };
+
+        var gaugeFraction = function (value, max) {
+            var fraction = Number(value) / Number(max);
+            return isNaN(fraction) ? 0 : Math.max(0, Math.min(1, fraction));
+        };
+
+        self.gaugeTrack = gaugeArcPath(-135, 135);
+
+        self.gaugeArc = function (value, max) {
+            var fraction = gaugeFraction(value, max);
+            return fraction > 0.002 ? gaugeArcPath(-135, -135 + 270 * fraction) : "";
+        };
+
+        self.gaugePoint = function (value, max) {
+            var point = gaugePolar(46, -135 + 270 * gaugeFraction(value, max));
+            return { x: point[0].toFixed(2), y: point[1].toFixed(2) };
+        };
+
+        self.gaugeTickPaths = ko.pureComputed(function () {
+            return self.tempGaugeTicks().map(function (fraction) {
+                var inner = gaugePolar(35, -135 + 270 * fraction);
+                var outer = gaugePolar(39, -135 + 270 * fraction);
+                return "M" + inner[0].toFixed(2) + " " + inner[1].toFixed(2) + "L" + outer[0].toFixed(2) + " " + outer[1].toFixed(2);
+            });
         });
 
-        self.tempGaugePathLen = ko.computed(() => {
-            return (self.tempGaugeRadius() * Math.PI * self.tempGaugeAngle() / 180).toFixed(2);
+        self.clampPercent = function (value) {
+            var number = Number(value);
+            return isNaN(number) ? 0 : Math.max(0, Math.min(100, number));
+        };
+
+        // Fills in what a gauge leaves out: the dashboard_gauge template calls all of these
+        self.makeGauge = function (gauge) {
+            var none = function () { return null; };
+            return $.extend({
+                target: function () { return 0; },
+                targetText: function () { return ""; },
+                unit: function () { return ""; },
+                ticks: function () { return []; },
+                color: function () { return self.accentColor(); },
+                history: function () { return ""; },
+                trend: none
+            }, gauge);
+        };
+
+        // Heating colors: below the target (minus the deviation) is heating, above it too hot, in between at target
+        self.heaterColor = function (actual, target) {
+            if (!self.dashboardSettings.showTempGaugeColors() || !(target > 0))
+                return self.accentColor();
+            var deviation = Number(self.dashboardSettings.targetTempDeviation());
+            if (actual < target - deviation)
+                return "#e8590c";
+            if (actual > target + deviation)
+                return "#e03131";
+            return "#2f9e44";
+        };
+
+        // The temperature history OctoPrint keeps for its graph, as [time in ms, value] pairs
+        var historySeconds = 600;
+        var temperatureHistory = function (key) {
+            var temperatures = self.temperatureModel.temperatures;
+            return temperatures && temperatures[key] && temperatures[key].actual ? temperatures[key].actual : [];
+        };
+
+        // The last ten minutes (or less, if OctoPrint has less) as polyline points in a 180 x 22 view box,
+        // scaled to the lowest and highest temperature in that time but at least 10 degrees
+        self.historyPoints = function (key) {
+            var history = temperatureHistory(key);
+            if (history.length < 2)
+                return "";
+            var end = history[history.length - 1][0];
+            var points = history.filter(function (point) {
+                return point[0] >= end - historySeconds * 1000;
+            });
+            var start = points[0][0];
+            var values = points.map(function (point) { return point[1]; });
+            var low = Math.min.apply(null, values);
+            var high = Math.max(Math.max.apply(null, values), low + 10);
+            return points.map(function (point) {
+                return ((point[0] - start) / Math.max(1, end - start) * 180).toFixed(1) + "," + (21 - (point[1] - low) / (high - low) * 20).toFixed(1);
+            }).join(" ");
+        };
+
+        // Compares with 30 seconds ago: up, down or stable
+        self.historyTrend = function (key) {
+            var history = temperatureHistory(key);
+            if (history.length < 2)
+                return null;
+            var last = history[history.length - 1];
+            var earlier = ko.utils.arrayFirst(history, function (point) {
+                return point[0] >= last[0] - 30000;
+            });
+            var change = last[1] - earlier[1];
+            return change > 1 ? "up" : change < -1 ? "down" : "stable";
+        };
+
+        self.trendText = function (trend) {
+            return { up: gettext("heating"), down: gettext("cooling"), stable: gettext("stable") }[trend];
+        };
+
+        var heaterGauge = function (key, name, icon, actual, target, max) {
+            return self.makeGauge({
+                name: name,
+                icon: icon,
+                value: function () { return actual(); },
+                max: function () { return Number(max()); },
+                target: function () { return target(); },
+                text: function () { return Math.round(self.convertTemp(actual())); },
+                unit: function () { return self.tempSymbol(); },
+                targetText: function () { return target() > 0 ? "→ " + Math.round(self.convertTemp(target())) + "°" : ""; },
+                ticks: function () { return self.gaugeTickPaths(); },
+                color: function () { return self.heaterColor(actual(), target()); },
+                history: function () {
+                    actual();
+                    return self.dashboardSettings.showTempHistory() ? self.historyPoints(key) : "";
+                },
+                trend: function () {
+                    actual();
+                    return self.historyTrend(key);
+                }
+            });
+        };
+
+        self.heaterGauges = ko.pureComputed(function () {
+            var gauges = [];
+            if (!self.temperatureModel.isOperational())
+                return gauges;
+            var settings = self.dashboardSettings;
+            self.temperatureModel.tools().forEach(function (tool) {
+                if (!settings.hideHotend() || tool.target() > 0)
+                    gauges.push(heaterGauge(tool.key(), tool.name(), "nozzle", tool.actual, tool.target, settings.hotendTempMax));
+            });
+            if (self.temperatureModel.hasBed())
+                gauges.push(heaterGauge("bed", self.temperatureModel.bedTemp.name(), "bed", self.temperatureModel.bedTemp.actual, self.temperatureModel.bedTemp.target, settings.bedTempMax));
+            if (self.temperatureModel.hasChamber())
+                gauges.push(heaterGauge("chamber", self.temperatureModel.chamberTemp.name(), "chamber", self.temperatureModel.chamberTemp.actual, self.temperatureModel.chamberTemp.target, settings.chamberTempMax));
+            return gauges;
         });
 
-        self.tempGaugeViewBox = ko.computed(() => {
-            return `0 0 ${2 * (self.tempGaugeRadius() + self.tempGaugeOffset())} ${2 * (self.tempGaugeRadius() + self.tempGaugeOffset())}`;
+        self.fanGauge = self.makeGauge({
+            name: gettext("Fan"),
+            icon: "fan",
+            value: function () { return Number(self.fanSpeed()) || 0; },
+            max: function () { return 100; },
+            text: function () { return Number(self.fanSpeed()) > 0 ? Math.round(self.fanSpeed()) : gettext("Off"); },
+            unit: function () { return Number(self.fanSpeed()) > 0 ? "%" : ""; }
         });
 
-        self.tempGaugeTickPath = (tick) => {
-            a = Math.PI / 180 * (0.5 * (360 - self.tempGaugeAngle()) + self.tempGaugeAngle() * tick);
-            offset = self.tempGaugeOffset();
-            radius = self.tempGaugeRadius();
-            inset = 10;
-            outset = 20;
+        self.sensorGauges = ko.pureComputed(function () {
+            if (!self.enclosureViewModel)
+                return [];
+            return self.enclosureViewModel.rpi_inputs_temperature_sensors().map(function (sensor) {
+                return self.makeGauge({
+                    name: sensor.label,
+                    icon: "thermometer",
+                    value: function () { return Number(sensor.temp_sensor_temp()); },
+                    max: function () { return Number(self.dashboardSettings.chamberTempMax()); },
+                    text: function () { return sensor.temp_sensor_temp(); },
+                    unit: function () { return sensor.use_fahrenheit() ? "°F" : "°C"; },
+                    targetText: function () { return sensor.temp_sensor_humidity && sensor.temp_sensor_humidity() ? sensor.temp_sensor_humidity() + "%" : ""; }
+                });
+            });
+        });
 
-            innerX = (radius - (radius - inset) * Math.sin(a) + offset).toFixed(2);
-            innerY = (offset + radius + (radius - inset) * Math.cos(a)).toFixed(2);
-            outerX = (-(inset + outset) * Math.sin(a)).toFixed(2);
-            outerY = ((inset + outset) * Math.cos(a)).toFixed(2);
-
-            return `M${innerX} ${innerY}l${outerX} ${outerY}`;
+        // Enabled command widgets of a type, with their index into cmdResults
+        var enabledCommands = function (type) {
+            var commands = [];
+            self.commandWidgetArray().forEach(function (command, index) {
+                if (command.enabled() && self.castToWidgetTypes(command.type()) === type)
+                    commands.push({ command: command, index: index });
+            });
+            return commands;
         };
 
-        self.tempGaugeTickTextX = (tick) => {
-            a = Math.PI / 180 * (0.5 * (360 - self.tempGaugeAngle()) + self.tempGaugeAngle() * tick);
-            offset = self.tempGaugeOffset();
-            radius = self.tempGaugeRadius();
-            textOutset = 35;
+        self.commandGauges = ko.pureComputed(function () {
+            return enabledCommands(self.widgetTypes.THREE_QUARTER).map(function (item) {
+                var result = function () { return Number(self.cmdResults()[item.index]); };
+                return self.makeGauge({
+                    name: item.command.name(),
+                    icon: self.commandIcon(item.command.icon()),
+                    value: result,
+                    max: function () { return Number(self.dashboardSettings.chamberTempMax()); },
+                    text: function () { return isNaN(result()) ? "-" : Math.round(self.convertTemp(result())); },
+                    unit: function () { return self.tempSymbol(); }
+                });
+            });
+        });
 
-            textX = (radius - (radius + textOutset) * Math.sin(a) + offset).toFixed(2);
+        self.commandProgress = ko.pureComputed(function () {
+            return enabledCommands(self.widgetTypes.PROGRESS).map(function (item) {
+                var percent = self.cmdResults()[item.index] * 100.0;
+                return { label: item.command.name(), value: percent, text: self.formatPercentage(percent) };
+            });
+        });
 
-            return textX;
-        };
+        // --- Progress ---
+        self.progressItems = ko.pureComputed(function () {
+            var settings = self.dashboardSettings;
+            var items = [];
+            if (settings.showTimeProgress())
+                items.push({ label: settings.showProgress() ? gettext("Time") : gettext("Job"), value: self.timeProgressString(), text: self.timeProgressBarString() });
+            if (settings.showProgress())
+                items.push({ label: settings.showTimeProgress() ? gettext("GCode") : gettext("Job"), value: self.printerStateModel.progressString(), text: self.printerStateModel.progressBarString() || "0%" });
+            if (settings.showHeightProgress())
+                items.push({ label: gettext("Height"), value: self.heightProgressString(), text: self.heightProgressBarString() });
+            if (settings.showLayerProgress())
+                items.push({ label: gettext("Layer"), value: self.layerProgress(), text: self.layerProgress() + "%" });
+            return items;
+        });
 
-        self.tempGaugeTickTextY = (tick) => {
-            a = Math.PI / 180 * (0.5 * (360 - self.tempGaugeAngle()) + self.tempGaugeAngle() * tick);
-            offset = self.tempGaugeOffset();
-            radius = self.tempGaugeRadius();
-            textOutset = 35;
+        // --- Layer graph ---
+        // One bar per layer, scaled to the longest; the last finished layer is highlighted
+        self.layerBars = ko.pureComputed(function () {
+            var type = self.dashboardSettings.layerGraphType();
+            var times = self.layerTimes();
+            var labels = self.layerTimeLabels();
+            var start = type == "last40layers" ? Math.max(0, times.length - 40) : 0;
+            times = times.slice(start);
+            labels = labels.slice(start);
+            var longest = Math.max.apply(null, times.concat([1]));
+            var barWidth = 10;
+            // one slot per layer of the print (or 40), so the bars fill up as it goes
+            var slots = type == "last40layers" ? 40 : Math.max(times.length, parseInt(self.totalLayer()) - 1 || 40);
+            var bars = times.map(function (time, index) {
+                var height = Math.max(1, time / longest * 96);
+                return {
+                    x: index * barWidth + 1,
+                    w: barWidth - 2,
+                    h: height.toFixed(1),
+                    y: (100 - height).toFixed(1),
+                    current: index == times.length - 1,
+                    title: gettext("Layer") + " " + labels[index] + ": " + self.formatSeconds(time)
+                };
+            });
+            return {
+                bars: bars,
+                width: (type == "scrolling" ? Math.max(times.length, 40) : slots) * barWidth,
+                cssWidth: type == "scrolling" ? Math.max(100, times.length / 40 * 100) + "%" : "100%",
+                first: labels.length ? gettext("Layer") + " " + labels[0] : "",
+                last: type != "last40layers" && slots > times.length ? slots : labels.length ? labels[labels.length - 1] : ""
+            };
+        });
 
-            textY = (offset + radius + (radius + textOutset) * Math.cos(a)).toFixed(2);
-
-            return textY;
-        };
-
-        self.formatFanText = function (fanSpeed) {
-            if (isNaN(fanSpeed))
-                return "Off";
-            if (fanSpeed == 0)
-                return "Off";
-            return Number.parseFloat(fanSpeed).toFixed(0) + "%";
-        }
-
-        self.formatFanOffset = function (fanSpeed) {
-            if (fanSpeed && !isNaN(fanSpeed)) {
-                return (self.tempGaugePathLen() * (1 - fanSpeed / 100)).toFixed(2);
-            } else return (self.tempGaugePathLen() * 0.01);
-        };
-
-        self.formatProgressOffset = function (currentProgress) {
-            // if (currentProgress && !isNaN(currentProgress)) {
-            if (currentProgress) {
-                return 339.292 * (1 - (currentProgress / 100));
-            } else return 339.292;
-        };
-
-        self.formatTempOffset = function (temp, range) {
-            if (temp) {
-                return (self.tempGaugePathLen() * (1 - Math.min(temp, range) / range)).toFixed(2);
-            } else return self.tempGaugePathLen();
-        };
+        self.layerGraphSummary = ko.pureComputed(function () {
+            if (!self.layerTimes().length)
+                return "";
+            return gettext("last") + " " + self.formatSeconds(self.layerTimes()[self.layerTimes().length - 1]) + " · ⌀ " + self.formatSeconds(self.averageLayerDuration());
+        });
 
         self.formatConnectionstatus = function (currentStatus) {
             if (currentStatus) {
@@ -1387,94 +1605,15 @@ $(function () {
 
             if (current == "#tab_plugin_dashboard") {
                 self._switchWebcam(self.webcamState());
-                self.updateChartWidth();
             } else if (previous == "#tab_plugin_dashboard") {
                 self._disableWebcam();
             };
         };
 
 
-        self.createLayerGraph = function () {
-            var element = $(".dashboardCard .ct-chart")[0];
-            self.layerGraph = element ? new Chartist.Line(element) : null;
-            if (self.layerGraph && self.layerGraphData)
-                self.renderChart(self.layerGraphData[0], self.layerGraphData[1]);
-        };
-
         self.renderChart = function (layerTimes, layerLabels) {
-            self.layerGraphData = [layerTimes, layerLabels];
-            if (self.bindingDone && self.layerGraph) {
-                //create a prototype multi-dimensional array
-                var data = {
-                    labels: [],
-                    series: [
-                        []
-                    ]
-                };
-
-                //Prep the data
-                var values = JSON.parse(layerTimes);
-                var labels = JSON.parse(layerLabels);
-
-                if (self.dashboardSettings.layerGraphType() == "last40layers") {
-                    for (var i = values.length - 40; i < values.length; i += 1) {
-                        data.series[0].push(values[i])
-                    }
-                    for (var i = labels.length - 40; i < labels.length; i += 1) {
-                        data.labels.push(labels[i])
-                    }
-                } else {
-                    for (var i = 0; i < values.length; i += 1) {
-                        data.series[0].push(values[i])
-                    }
-                    for (var i = 0; i < labels.length; i += 1) {
-                        data.labels.push(labels[i])
-                    }
-                }
-
-                let calculatedWidth = 98;
-
-                if (self.dashboardSettings.layerGraphType() == "scrolling") {
-                    calculatedWidth *= Math.max(labels.length / 40, 1)
-                }
-
-                self.chartWidth = calculatedWidth;
-
-                //Chart Options
-                var options = {
-                    onlyInteger: true,
-                    showPoint: false,
-                    lineSmooth: true,
-                    fullWidth: true,
-                    width: `${calculatedWidth}%`,
-                    height: '150px',
-                    axisX: {
-                        showGrid: false,
-                        showLabel: true,
-                        labelInterpolationFnc: function skipLabels(value, index, labels) {
-                            let interval = (self.dashboardSettings.layerGraphType() == "normal")
-                                ? Math.ceil(labels.length / 20)
-                                : 5;
-
-                            if (labels[index] % interval == 0) {
-                                return value;
-                            } else {
-                                return null;
-                            }
-                        }
-                    }
-                };
-                self.layerGraph.update(data, options);
-            }
-        };
-
-        self.updateChartWidth = function () {
-            if (self.bindingDone && self.layerGraph) {
-                var options = {
-                    width: `${self.chartWidth}%`
-                };
-                self.layerGraph.update(options);
-            }
+            self.layerTimes(JSON.parse(layerTimes));
+            self.layerTimeLabels(JSON.parse(layerLabels));
         };
 
         // full page
@@ -1512,7 +1651,6 @@ $(function () {
                 self.switchToDefaultWebcam();
             }
 
-            self.createLayerGraph();
 
             // The widget settings dialog is opened on top of the settings dialog too
             $("#dashboardWidgetDialog").appendTo("body");
@@ -1588,9 +1726,6 @@ $(function () {
                 setTimeout(self.updatePrintThumbnail, 2500);
             }
 
-            self.printerStateModel.isPrinting.subscribe(function () {
-                self.fitties.forEach(f => f.fit());
-            });
         }
 
         self.onServerDisconnect = function () {
