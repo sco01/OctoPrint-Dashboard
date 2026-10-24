@@ -95,23 +95,9 @@ $(function () {
         self.hls_capable = ko.observable(false);
 
 
-        self.fsStatus = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsStatus(), this);
-        self.fsSystemInfo = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsSystemInfo(), this);
-        self.fsTempGauges = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsTempGauges(), this);
-        self.fsFan = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsFan(), this);
-        self.fsCommandWidgets = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsCommandWidgets(), this);
-        self.fsJobControlButtons = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsJobControlButtons(), this);
-        self.fsSensorInfo = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsSensorInfo(), this);
-        self.fsPrinterMessage = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsPrinterMessage(), this);
-        self.fsProgressGauges = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsProgressGauges(), this);
-        self.fsLayerGraph = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsLayerGraph(), this);
-        self.fsFileName = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsFileName(), this);
-        self.fsFilament = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsFilament(), this);
-        self.fsFeedrate = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsFeedrate(), this);
-        self.fsTimeEstimate = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsTimeEstimate(), this);
-        self.fsLayerInfo = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsLayerInfo(), this);
-        self.fsWebCam = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsWebCam(), this);
-        self.fsPrintThumbnail = ko.computed(() => !this.isFull() || this.settingsViewModel.settings.plugins.dashboard.fsPrintThumbnail(), this);
+        // Widget registry, filled in onBeforeBinding: self.widgets is the ordered list, self.widget looks one up by id
+        self.widgets = [];
+        self.widget = {};
 
 
         self.hls;
@@ -487,100 +473,136 @@ $(function () {
 
             self.commandWidgetArray = self.dashboardSettings.commandWidgetArray;
 
-            // widgets settings
-            // widget settings are generated using the following observable array
-            // required attributes for each item are: title (the name of the widget), setting (the observable that will be the enabled status of the widget)
-            // for more complex things, the setting attribute can also be a function which returns the enabled status as a bool. in this case the enable and disable functions must also exist, and will be called when the widget is enabled and disabled. see the Progress Gauges setting for an example
-            // additional widget settings can be added in two ways (ONLY ONE OF THESE WAYS CAN BE USED AT A TIME!).
-            // --- Way to add widget settings 1 ---
-            // use the settings attribute as an array of settings
-            // settings can be of type radio or checkbox
-            // see the Progress Gauges setitngs for an example
-            // can also be of type title (will just show the title) - see Filament Widget for example
-            // --- Way to add widget settings 2 ---
-            // create a modal in the settings page jinja template and set the settingsId attribute below to the id of the modal with a # before it
-            self.widgetsSettings = ko.observableArray([
-                { title: gettext("FullScreen & FullBrowser Mode Buttons"), enabled: dashboardSettings.showFullscreen },
-                { title: gettext("System Info"), enabled: dashboardSettings.showSystemInfo, settingsId: "#dashboardSysInfoSettingsModal", enableInFull: dashboardSettings.fsSystemInfo, printingOnly: dashboardSettings.printingOnly_SystemInfo },
-                { title: gettext("Status"), enabled: dashboardSettings.showStatus, enableInFull: dashboardSettings.fsStatus, printingOnly: dashboardSettings.printingOnly_Status },
-                { title: gettext("Job Control Buttons"), enabled: dashboardSettings.showJobControlButtons, enableInFull: dashboardSettings.fsJobControlButtons, printingOnly: dashboardSettings.printingOnly_JobControlButtons },
-                { title: gettext("Temperature Gauges"), enabled: dashboardSettings.enableTempGauges, settingsId: "#dashboardTempGaugeSettingsModal", enableInFull: dashboardSettings.fsTempGauges, printingOnly: dashboardSettings.printingOnly_TempGauges },
-                { title: gettext("Fan Gauge"), enabled: dashboardSettings.showFan, enableInFull: dashboardSettings.fsFan, printingOnly: dashboardSettings.printingOnly_Fan },
+            // --- Widget registry ---
+            // One entry per widget, in the order they appear in settings. Besides id and title, an entry names the
+            // plugin settings that control it:
+            //   show: shown at all (can instead be a function, with enable and disable functions, see Progress Gauges)
+            //   full: also shown in fullscreen and full browser window
+            //   printingOnly: only shown while printing
+            //   clearOn: when its data is cleared (1 = print start, 2 = print end)
+            // Extra settings for the settings page can be added in one of two ways (ONLY ONE PER WIDGET):
+            //   settings: an array of radio, checkbox or title settings, see Progress Gauges and Filament Widget
+            //   settingsId: the id (with a #) of a modal in the settings page jinja template
+            var definitions = [
+                { id: "fullscreenButtons", title: gettext("FullScreen & FullBrowser Mode Buttons"), show: "showFullscreen" },
+                { id: "systemInfo", title: gettext("System Info"), show: "showSystemInfo", full: "fsSystemInfo", printingOnly: "printingOnly_SystemInfo", settingsId: "#dashboardSysInfoSettingsModal" },
+                { id: "status", title: gettext("Status"), show: "showStatus", full: "fsStatus", printingOnly: "printingOnly_Status" },
+                { id: "jobControlButtons", title: gettext("Job Control Buttons"), show: "showJobControlButtons", full: "fsJobControlButtons", printingOnly: "printingOnly_JobControlButtons" },
+                { id: "tempGauges", title: gettext("Temperature Gauges"), show: "enableTempGauges", full: "fsTempGauges", printingOnly: "printingOnly_TempGauges", settingsId: "#dashboardTempGaugeSettingsModal" },
+                { id: "fan", title: gettext("Fan Gauge"), show: "showFan", full: "fsFan", printingOnly: "printingOnly_Fan" },
                 {
+                    id: "sensorInfo",
                     title: gettext("Enclosure Gauges"),
-                    enabled: dashboardSettings.showSensorInfo,
+                    show: "showSensorInfo",
+                    full: "fsSensorInfo",
+                    printingOnly: "printingOnly_SensorInfo",
                     settings: [
                         { type: "radio", title: gettext("Enclosure Plugin Gague Style"), setting: dashboardSettings.enclosureGaugeStyle, options: [{ name: gettext("Temperature Dial"), value: "3/4" }, { name: gettext("Text"), value: "text" }] }
-                    ],
-                    enableInFull: dashboardSettings.fsSensorInfo,
-                    printingOnly: dashboardSettings.printingOnly_SensorInfo
+                    ]
                 },
-                { title: gettext("Print Thumbnail (Slicer Thumbnails)"), enabled: dashboardSettings.showPrintThumbnail, enableInFull: dashboardSettings.fsPrintThumbnail, clearOn: dashboardSettings.clearOn_PrintThumbnail },
-                { title: gettext("Command Widgets"), enabled: dashboardSettings.showCommandWidgets, settingsId: "#dashboardCommandSettingsModal", enableInFull: dashboardSettings.fsCommandWidgets, printingOnly: dashboardSettings.printingOnly_CommandWidgets },
-                { title: gettext("Printer Message (M117)"), enabled: dashboardSettings.showPrinterMessage, enableInFull: dashboardSettings.fsPrinterMessage, printingOnly: dashboardSettings.printingOnly_PrinterMessage, clearOn: dashboardSettings.clearOn_PrinterMessage },
+                { id: "printThumbnail", title: gettext("Print Thumbnail (Slicer Thumbnails)"), show: "showPrintThumbnail", full: "fsPrintThumbnail", clearOn: "clearOn_PrintThumbnail" },
+                { id: "commandWidgets", title: gettext("Command Widgets"), show: "showCommandWidgets", full: "fsCommandWidgets", printingOnly: "printingOnly_CommandWidgets", settingsId: "#dashboardCommandSettingsModal" },
+                { id: "printerMessage", title: gettext("Printer Message (M117)"), show: "showPrinterMessage", full: "fsPrinterMessage", printingOnly: "printingOnly_PrinterMessage", clearOn: "clearOn_PrinterMessage" },
                 {
+                    id: "progressGauges",
                     title: gettext("Progress Gauges"),
-                    enabled: function () {
+                    show: function () {
                         return dashboardSettings.showTimeProgress() || dashboardSettings.showProgress() || dashboardSettings.showLayerProgress() || dashboardSettings.showHeightProgress();
                     },
                     enable: function () {
-                        self.dashboardSettings.showTimeProgress(true);
-                        self.dashboardSettings.showProgress(true);
-                        self.dashboardSettings.showLayerProgress(true);
-                        self.dashboardSettings.showHeightProgress(true);
+                        dashboardSettings.showTimeProgress(true);
+                        dashboardSettings.showProgress(true);
+                        dashboardSettings.showLayerProgress(true);
+                        dashboardSettings.showHeightProgress(true);
                     },
                     disable: function () {
-                        self.dashboardSettings.showTimeProgress(false);
-                        self.dashboardSettings.showProgress(false);
-                        self.dashboardSettings.showLayerProgress(false);
-                        self.dashboardSettings.showHeightProgress(false);
+                        dashboardSettings.showTimeProgress(false);
+                        dashboardSettings.showProgress(false);
+                        dashboardSettings.showLayerProgress(false);
+                        dashboardSettings.showHeightProgress(false);
                     },
+                    full: "fsProgressGauges",
+                    printingOnly: "printingOnly_ProgressGauges",
                     settings: [
                         { type: "radio", title: gettext("Progress gauge type"), setting: dashboardSettings.gaugetype, options: [{ name: gettext("Circle"), value: "circle" }, { name: gettext("Bar"), value: "bar" }] },
                         { type: "checkbox", title: gettext("Show Time Progress Gauge"), setting: dashboardSettings.showTimeProgress },
                         { type: "checkbox", title: gettext("Show GCode Progress Gauge"), setting: dashboardSettings.showProgress },
                         { type: "checkbox", title: gettext("Show Layer Progress Gauge"), setting: dashboardSettings.showLayerProgress },
                         { type: "checkbox", title: gettext("Show Height Progress Gauge"), setting: dashboardSettings.showHeightProgress }
-                    ],
-                    enableInFull: self.dashboardSettings.fsProgressGauges,
-                    printingOnly: self.dashboardSettings.printingOnly_ProgressGauges,
+                    ]
                 },
                 {
+                    id: "layerGraph",
                     title: gettext("Layer Duration Graph"),
-                    enabled: dashboardSettings.showLayerGraph,
+                    show: "showLayerGraph",
+                    full: "fsLayerGraph",
+                    printingOnly: "printingOnly_LayerGraph",
+                    clearOn: "clearOn_LayerGraph",
                     settings: [
                         { type: "radio", title: gettext("Layer graph type"), setting: dashboardSettings.layerGraphType, options: [{ name: gettext("Normal"), value: "normal" }, { name: gettext("Last 40 Layers"), value: "last40layers" }, { name: gettext("Scrolling"), value: "scrolling" }] }
-                    ],
-                    enableInFull: self.dashboardSettings.fsLayerGraph,
-                    printingOnly: self.dashboardSettings.printingOnly_LayerGraph,
-                    clearOn: self.dashboardSettings.clearOn_LayerGraph
+                    ]
                 },
-                { title: gettext("File Name"), enabled: dashboardSettings.showFileName, enableInFull: dashboardSettings.fsFileName, printingOnly: dashboardSettings.printingOnly_FileName },
+                { id: "fileName", title: gettext("File Name"), show: "showFileName", full: "fsFileName", printingOnly: "printingOnly_FileName" },
                 {
+                    id: "filament",
                     title: gettext("Filament Widget"),
-                    enabled: dashboardSettings.showFilament,
-                    settings:
-                        [
-                            {
-                                type: "title",
-                                title: gettext("The filament widget shows how much filament has been extruded. It can also show the time untill next filament change.")
-                            },
-                            {
-                                type: "checkbox",
-                                title: gettext("Show time untill next filament change"),
-                                setting: dashboardSettings.showFilamentChangeTime
-                            },
-                        ],
-                    enableInFull: dashboardSettings.fsFilament,
-                    printingOnly: dashboardSettings.printingOnly_Filament,
-                    clearOn: dashboardSettings.clearOn_Filament
+                    show: "showFilament",
+                    full: "fsFilament",
+                    printingOnly: "printingOnly_Filament",
+                    clearOn: "clearOn_Filament",
+                    settings: [
+                        { type: "title", title: gettext("The filament widget shows how much filament has been extruded. It can also show the time untill next filament change.") },
+                        { type: "checkbox", title: gettext("Show time untill next filament change"), setting: dashboardSettings.showFilamentChangeTime }
+                    ]
                 },
-                { title: gettext("Feedrate"), enabled: dashboardSettings.showFeedrate, settingsId: "#dashboardFeedrateSettingsModal", enableInFull: dashboardSettings.fsFeedrate, printingOnly: dashboardSettings.printingOnly_Feedrate, clearOn: dashboardSettings.clearOn_Feedrate },
-                { title: gettext("Time Estimate"), enabled: dashboardSettings.showTimeEstimate, enableInFull: dashboardSettings.fsTimeEstimate, printingOnly: dashboardSettings.printingOnly_TimeEstimate },
-                { title: gettext("Layer Info"), enabled: dashboardSettings.showLayerInfo, enableInFull: dashboardSettings.fsLayerInfo, printingOnly: dashboardSettings.printingOnly_LayerInfo },
-                { title: gettext("Webcam"), enabled: dashboardSettings.showWebCam, settingsId: "#dashboardWebcamSettingsModal", enableInFull: dashboardSettings.fsWebCam, printingOnly: dashboardSettings.printingOnly_WebCam }
-            ]);
+                { id: "feedrate", title: gettext("Feedrate"), show: "showFeedrate", full: "fsFeedrate", printingOnly: "printingOnly_Feedrate", clearOn: "clearOn_Feedrate", settingsId: "#dashboardFeedrateSettingsModal" },
+                { id: "timeEstimate", title: gettext("Time Estimate"), show: "showTimeEstimate", full: "fsTimeEstimate", printingOnly: "printingOnly_TimeEstimate" },
+                { id: "layerInfo", title: gettext("Layer Info"), show: "showLayerInfo", full: "fsLayerInfo", printingOnly: "printingOnly_LayerInfo" },
+                { id: "webcam", title: gettext("Webcam"), show: "showWebCam", full: "fsWebCam", printingOnly: "printingOnly_WebCam", settingsId: "#dashboardWebcamSettingsModal" }
+            ];
 
+            self.widgets = definitions.map(self.createWidget);
+            self.widgets.forEach(function (widget) {
+                self.widget[widget.id] = widget;
+            });
+        };
+
+        // Turns a registry definition into a widget. The settings page binds to enabled, enableInFull, printingOnly
+        // and clearOn, and tests whether they exist, so they are only set when the definition has them.
+        // The tab binds to the computed observables:
+        //   inLayout: enabled, and allowed in fullscreen when the dashboard is fullscreen
+        //   printingOk: not limited to printing, or a print is running
+        //   shown: both of the above
+        self.createWidget = function (definition) {
+            var dashboardSettings = self.dashboardSettings;
+            var widget = { id: definition.id, title: definition.title };
+
+            widget.enabled = typeof definition.show == "function" ? definition.show : dashboardSettings[definition.show];
+            if (definition.enable) {
+                widget.enable = definition.enable;
+                widget.disable = definition.disable;
+            }
+            if (definition.full)
+                widget.enableInFull = dashboardSettings[definition.full];
+            if (definition.printingOnly)
+                widget.printingOnly = dashboardSettings[definition.printingOnly];
+            if (definition.clearOn)
+                widget.clearOn = dashboardSettings[definition.clearOn];
+            if (definition.settings)
+                widget.settings = definition.settings;
+            if (definition.settingsId)
+                widget.settingsId = definition.settingsId;
+
+            widget.inLayout = ko.pureComputed(function () {
+                return widget.enabled() && (!self.isFull() || !widget.enableInFull || widget.enableInFull());
+            });
+            widget.printingOk = ko.pureComputed(function () {
+                return !widget.printingOnly || !widget.printingOnly() || self.printerStateModel.isPrinting();
+            });
+            widget.shown = ko.pureComputed(function () {
+                return widget.inLayout() && widget.printingOk();
+            });
+            return widget;
         };
 
         self.enableWidget = function (widget) {
@@ -701,7 +723,7 @@ $(function () {
         const webcamLoadingIcon = "data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8' standalone='no'%3F%3E%3Csvg xmlns:svg='http://www.w3.org/2000/svg' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.0' width='128px' height='128px' viewBox='-256 -256 640 640' xml:space='preserve'%3E%3Cg%3E%3Ccircle cx='16' cy='64' r='16' fill='%23000000' fill-opacity='1'/%3E%3Ccircle cx='16' cy='64' r='14.344' fill='%23000000' fill-opacity='1' transform='rotate(45 64 64)'/%3E%3Ccircle cx='16' cy='64' r='12.531' fill='%23000000' fill-opacity='1' transform='rotate(90 64 64)'/%3E%3Ccircle cx='16' cy='64' r='10.75' fill='%23000000' fill-opacity='1' transform='rotate(135 64 64)'/%3E%3Ccircle cx='16' cy='64' r='10.063' fill='%23000000' fill-opacity='1' transform='rotate(180 64 64)'/%3E%3Ccircle cx='16' cy='64' r='8.063' fill='%23000000' fill-opacity='1' transform='rotate(225 64 64)'/%3E%3Ccircle cx='16' cy='64' r='6.438' fill='%23000000' fill-opacity='1' transform='rotate(270 64 64)'/%3E%3Ccircle cx='16' cy='64' r='5.375' fill='%23000000' fill-opacity='1' transform='rotate(315 64 64)'/%3E%3CanimateTransform attributeName='transform' type='rotate' values='0 64 64;315 64 64;270 64 64;225 64 64;180 64 64;135 64 64;90 64 64;45 64 64' calcMode='discrete' dur='720ms' repeatCount='indefinite'%3E%3C/animateTransform%3E%3C/g%3E%3C/svg%3E";
         const webcamLoadingIconLight = "data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8' standalone='no'%3F%3E%3Csvg xmlns:svg='http://www.w3.org/2000/svg' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.0' width='128px' height='128px' viewBox='-256 -256 640 640' xml:space='preserve'%3E%3Cg%3E%3Ccircle cx='16' cy='64' r='16' fill='%23ffffff' fill-opacity='1'/%3E%3Ccircle cx='16' cy='64' r='14.344' fill='%23ffffff' fill-opacity='1' transform='rotate(45 64 64)'/%3E%3Ccircle cx='16' cy='64' r='12.531' fill='%23ffffff' fill-opacity='1' transform='rotate(90 64 64)'/%3E%3Ccircle cx='16' cy='64' r='10.75' fill='%23ffffff' fill-opacity='1' transform='rotate(135 64 64)'/%3E%3Ccircle cx='16' cy='64' r='10.063' fill='%23ffffff' fill-opacity='1' transform='rotate(180 64 64)'/%3E%3Ccircle cx='16' cy='64' r='8.063' fill='%23ffffff' fill-opacity='1' transform='rotate(225 64 64)'/%3E%3Ccircle cx='16' cy='64' r='6.438' fill='%23ffffff' fill-opacity='1' transform='rotate(270 64 64)'/%3E%3Ccircle cx='16' cy='64' r='5.375' fill='%23ffffff' fill-opacity='1' transform='rotate(315 64 64)'/%3E%3CanimateTransform attributeName='transform' type='rotate' values='0 64 64;315 64 64;270 64 64;225 64 64;180 64 64;135 64 64;90 64 64;45 64 64' calcMode='discrete' dur='720ms' repeatCount='indefinite'%3E%3C/animateTransform%3E%3C/g%3E%3C/svg%3E";
         self._switchWebcam = function (cameraNum) {
-            if (self.bindingDone && self.webcam_perm() && (!self.dashboardSettings.printingOnly_WebCam() || self.printerStateModel.isPrinting()) && self.dashboardSettings.showWebCam() && self.fsWebCam() && cameraNum != 0) {
+            if (self.bindingDone && self.webcam_perm() && self.widget.webcam.shown() && cameraNum != 0) {
                 // Only change webcam stuff if the camera has changed or the webcam has been unloaded
                 if (cameraNum != self.webcamState() || !(self.webcamHlsEnabled() || self.webcamMjpgEnabled())) {
                     self.webcamMjpgEnabled(true);

@@ -22,7 +22,7 @@
 <form class="form-horizontal">
     <!-- WIDGET VISIBILITY -->
     <!-- Please note: adding new widget visibility settings is a bit different now. -->
-    <!-- This is generated using the widgetsSettings array (in dashboard.js). please use that to add new widget settings -->
+    <!-- This is generated using the widget registry (self.widgets in dashboard.js). please use that to add new widget settings -->
     <!-- Other settings can still be added normaly below-->
     <div class="row-fluid">
         <div class="span7">
@@ -38,7 +38,7 @@
             <h5>{{ _('Disable') }}</h5>
         </div>
     </div>
-    <div data-bind="foreach: widgetsSettings">
+    <div data-bind="foreach: widgets">
         <div class="row-fluid dashboardSettingsWidgetsRow" data-bind="visible: enabled()">
             <span class="span8" data-bind="text: gettext(title)"></span>
             <button title="{{ _('Visibility options') }}" class="btn span1" role="button"
@@ -124,7 +124,7 @@
             </div>
         </div>
     </div>
-    <div data-bind="visible: (widgetsSettings().filter(x => x.enabled()).length == 0)">
+    <div data-bind="visible: (widgets.filter(x => x.enabled()).length == 0)">
         {{ _('There are no enabled widgets') }}
     </div>
     <br>
@@ -139,7 +139,7 @@
             <h5>{{ _('Enable') }}</h5>
         </div>
     </div>
-    <div data-bind="foreach: widgetsSettings">
+    <div data-bind="foreach: widgets">
         <div class="row-fluid dashboardSettingsWidgetsRow" data-bind="visible: !(enabled())">
             <span class="span9" data-bind="text: gettext(title)"></span>
             <button title="{{ _('Widget options') }}" class="btn span1"
@@ -150,7 +150,7 @@
                     class="fa fa-arrow-up"></i></button>
         </div>
     </div>
-    <div data-bind="visible: (widgetsSettings().filter(x => !x.enabled()).length == 0)">
+    <div data-bind="visible: (widgets.filter(x => !x.enabled()).length == 0)">
         {{ _('There are no disabled widgets') }}
     </div>
 
