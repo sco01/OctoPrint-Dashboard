@@ -198,14 +198,38 @@ button.dashboardButton#job_cancel.confirm {
     grid-column: span 4;
 }
 
+.dashboardCard[data-size="1x2"] {
+    grid-row: span 2;
+}
+
 .dashboardCard[data-size="2x2"] {
     grid-column: span 2;
+    grid-row: span 2;
+}
+
+.dashboardCard[data-size="3x2"] {
+    grid-column: span 3;
     grid-row: span 2;
 }
 
 .dashboardCard[data-size="4x2"] {
     grid-column: span 4;
     grid-row: span 2;
+}
+
+.dashboardCard[data-size="2x3"] {
+    grid-column: span 2;
+    grid-row: span 3;
+}
+
+.dashboardCard[data-size="3x3"] {
+    grid-column: span 3;
+    grid-row: span 3;
+}
+
+.dashboardCard[data-size="4x3"] {
+    grid-column: span 4;
+    grid-row: span 3;
 }
 
 .dashboardCardBody {
@@ -229,9 +253,8 @@ button.dashboardButton#job_cancel.confirm {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .dashboardCard[data-size="3x1"],
-    .dashboardCard[data-size="4x1"],
-    .dashboardCard[data-size="4x2"] {
+    .dashboardCard[data-size^="3x"],
+    .dashboardCard[data-size^="4x"] {
         grid-column: span 2;
     }
 }
@@ -274,17 +297,23 @@ button.dashboardButton#job_cancel.confirm {
 
 .dashboardCardEdit {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    gap: 4px;
     margin-bottom: 6px;
     padding-bottom: 4px;
     border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
     font-size: 12px;
 }
 
+.dashboardCardEditTitle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
 .dashboardCardHandle {
-    flex: 1 1 90px;
+    flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -301,9 +330,9 @@ button.dashboardButton#job_cancel.confirm {
 
 .dashboardCardControls {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 2px;
-    margin-left: auto;
+    gap: 4px;
 }
 
 .dashboardCardSize {
@@ -315,12 +344,18 @@ button.dashboardButton#job_cancel.confirm {
 }
 
 .dashboardCardButton {
-    padding: 2px 6px;
-    border: 1px solid transparent;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(128, 128, 128, 0.35);
     border-radius: 4px;
     background: none;
     color: inherit;
-    opacity: 0.7;
+    opacity: 0.75;
 }
 
 .dashboardCardButton:hover {
@@ -349,7 +384,18 @@ button.dashboardButton#job_cancel.confirm {
 
 .dashboard-full .dashboardGrid {
     gap: 1.5vmin;
+    min-height: calc(100vh - 4vmin);
     padding-top: 40px;
+    box-sizing: border-box;
+    grid-auto-rows: minmax(min-content, 1fr);
+}
+
+.dashboard-full.dashboard-editing .dashboardGrid {
+    padding-top: 0;
+}
+
+.dashboard-full .dashboardCard[data-id="webcam"] .dashboardCardBody {
+    align-content: center;
 }
 
 .dashboard-full .dashboardCard {
@@ -563,6 +609,11 @@ button.dashboardButton#job_cancel.confirm {
     overflow: hidden;
     border-radius: 3px;
     background: rgba(128, 128, 128, 0.2);
+}
+
+/* In a widget column a bar is a row of its own, not a flexible column item (which made it 0 px high) */
+.dashboardWidget>.dashboardBar {
+    flex: none;
 }
 
 .dashboardBar i {

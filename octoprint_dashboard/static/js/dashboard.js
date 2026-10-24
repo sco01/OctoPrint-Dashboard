@@ -558,7 +558,7 @@ $(function () {
         // dashboardSettings.layout.tab and .full are observable arrays of placements { id, size, printingOnly }.
         // The tab shows the tab layout, fullscreen and the full browser window show the full layout, and while
         // editing the layout being edited is shown.
-        self.layoutSizes = ["1x1", "2x1", "3x1", "4x1", "2x2", "4x2"];
+        self.layoutSizes = ["1x1", "2x1", "3x1", "4x1", "1x2", "2x2", "3x2", "4x2", "2x3", "3x3", "4x3"];
         self.editMode = ko.observable(false);
         self.editLayoutName = ko.observable("tab");
         self.draggedPlacement = ko.observable(null);
@@ -752,6 +752,13 @@ $(function () {
         };
 
         // Cancel also undoes changes made in widget settings dialogs, by reloading the settings
+        // The fullscreen layout is easiest to arrange at its real size
+        self.editFullLayoutInFullscreen = function () {
+            self.editLayoutName("full");
+            if (!document.fullscreenElement)
+                self.fullScreen();
+        };
+
         self.cancelEditLayout = function () {
             if (layoutBeforeEdit) {
                 self.setLayout("tab", layoutBeforeEdit.tab);
@@ -1671,7 +1678,7 @@ $(function () {
 
                 // Esc leaves the full browser window, like it leaves fullscreen
                 document.addEventListener("keydown", function (event) {
-                    if (event.key == "Escape" && !$(".modal:visible").length)
+                    if (event.key == "Escape" && !$(".modal:visible").length && !self.editMode())
                         self.toggleFullBrowserWindow();
                 });
             }

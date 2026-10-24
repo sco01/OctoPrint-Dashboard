@@ -36,7 +36,7 @@ old default.
 
 from __future__ import absolute_import, unicode_literals
 
-SIZES = ["1x1", "2x1", "3x1", "4x1", "2x2", "4x2"]
+SIZES = ["1x1", "2x1", "3x1", "4x1", "1x2", "2x2", "3x2", "4x2", "2x3", "3x3", "4x3"]
 
 # id, show setting(s), fullscreen setting, printing only setting, size in the tab, size in fullscreen
 LEGACY_WIDGETS = [
