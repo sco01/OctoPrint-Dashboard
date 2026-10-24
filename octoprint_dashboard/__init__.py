@@ -33,6 +33,7 @@ import sys
 import time
 from datetime import datetime
 
+import flask
 import octoprint.filemanager
 import octoprint.filemanager.util
 import octoprint.plugin
@@ -50,6 +51,7 @@ except ImportError:
     ACCESS_PERMISSIONS_AVAILABLE = False
 
 from octoprint_dashboard.gcode_processor import GcodePreProcessor
+from octoprint_dashboard.layout import is_placed, layout_from_legacy
 
 
 class DashboardPlugin(
@@ -267,6 +269,12 @@ class DashboardPlugin(
             self._identifier, dict(cmdTest=json.dumps(results))
         )
 
+    def is_widget_placed(self, widget_id):
+        """
+        True if the widget is in the tab or the fullscreen layout
+        """
+        return is_placed(self._settings.get(["layout"]), widget_id)
+
     def update_cmds(self):
         """
         Update Command Widgets
@@ -278,7 +286,7 @@ class DashboardPlugin(
 
         del self.cmd_timers[:]
 
-        if self._settings.get_boolean(["showCommandWidgets"]):
+        if self.is_widget_placed("commandWidgets"):
             for index, command in enumerate(self.cmd_commands):
                 if command.get("enabled"):
                     timer = RepeatedTimer(
@@ -294,6 +302,9 @@ class DashboardPlugin(
     def is_api_protected(self):
         return True
     
+    def on_api_get(self, request):
+        return flask.jsonify(defaultLayout=self.get_settings_defaults()["layout"])
+
     def get_api_commands(self):
         return dict(testCmdWidget=["cmd"], jsError=["msg"])
 
@@ -331,7 +342,7 @@ class DashboardPlugin(
 
         self.cmd_commands = self._settings.get(["commandWidgetArray"])
 
-        if self._settings.get_boolean(["showSystemInfo"]):
+        if self.is_widget_placed("systemInfo"):
             self.psuTimer = RepeatedTimer(3.0, self.ps_util_get_stats)
             self.psuTimer.daemon = True
             self.psuTimer.start()
@@ -592,7 +603,7 @@ class DashboardPlugin(
     # ~~ SettingsPlugin mixin
     def get_settings_defaults(self):
         # settings defaults
-        return dict(
+        defaults = dict(
             # progress gauges
             gaugetype="circle",
             # temp gauges
@@ -646,7 +657,7 @@ class DashboardPlugin(
             defaultWebcam=0,
             # overlay dashboard over the webcam in fullscreen
             dashboardOverlayFull=False,
-            # visibility of widgets
+            # visibility of widgets, used to build the default layout (see layout.py)
             showFan=True,
             showWebCam=False,
             showSystemInfo=False,
@@ -721,6 +732,9 @@ class DashboardPlugin(
             # temperature units
             useFahrenheit=False,
         )
+        # widgets placed in the tab and in fullscreen
+        defaults["layout"] = layout_from_legacy(defaults.get)
+        return defaults
 
     def get_settings_restricted_paths(self):
         return dict(
@@ -755,8 +769,15 @@ class DashboardPlugin(
             self._settings.set(["commandWidgetArray"], tmp_cmd_array)
             self._settings.save()
 
+        # convert to version 3 (i.e. build the layouts from the old widget visibility settings)
+        if current is None or current < 3:
+            self._settings.set(
+                ["layout"], layout_from_legacy(lambda key: self._settings.get([key]))
+            )
+            self._settings.save()
+
     def get_settings_version(self):
-        return 2
+        return 3
 
     def on_settings_save(self, data):
         if (
@@ -775,7 +796,7 @@ class DashboardPlugin(
         if self.psuTimer:
             self.psuTimer.cancel()
 
-        if self._settings.get_boolean(["showSystemInfo"]):
+        if self.is_widget_placed("systemInfo"):
             self.psuTimer = RepeatedTimer(3.0, self.ps_util_get_stats)
             self.psuTimer.daemon = True
             self.psuTimer.start()

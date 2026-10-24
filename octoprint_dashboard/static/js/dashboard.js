@@ -31,6 +31,7 @@ $(function () {
         self.controlViewModel = parameters[5];
         self.enclosureViewModel = parameters[6];
         self.loginState = parameters[7];
+        self.access = parameters[8];
 
         //Settings
         self.dashboardSettings = null;
@@ -102,8 +103,8 @@ $(function () {
 
         self.hls;
 
-        //Scale down the file name if it is too long to fit one line #This should probably be placed somewhere else
-        self.fitties = fitty('#fileInfo', { minSize: 2, maxSize: 20 });
+        //Scale down the file name if it is too long to fit one line, set up when the file name widget is rendered
+        self.fitties = [];
 
         //Fullscreen
         self.urlParams = new URLSearchParams(window.location.search);
@@ -111,7 +112,8 @@ $(function () {
 
         self.bindingDone = false;
 
-        self.layerGraph;
+        self.layerGraph = null;
+        self.layerGraphData = null;
 
         self.currentTab = '';
 
@@ -282,7 +284,7 @@ $(function () {
                 }
 
                 // Feedrate
-                if (data.currentFeedrate && self.dashboardSettings.showFeedrate()) {
+                if (data.currentFeedrate && self.isPlaced("feedrate")) {
                     // calculate last 5 seconds average
                     self.feedrateLastFiveSeconds.push(data.currentFeedrate);
                     self.feedrateAvLastFiveSeconds((self.feedrateLastFiveSeconds.reduce((a, b) => a + b, 0) / self.feedrateLastFiveSeconds.length) || 0);
@@ -380,7 +382,7 @@ $(function () {
                 self.feedrateLastFiveSeconds = [];
             }
 
-            if (self.dashboardSettings.showPrintThumbnail()) {
+            if (self.isPlaced("printThumbnail")) {
                 self.updatePrintThumbnail();
             }
 
@@ -405,8 +407,10 @@ $(function () {
                 self.feedrateAvLastFiveSeconds(0);
                 self.feedrateLastFiveSeconds = [];
             }
-            if (self.dashboardSettings.clearOn_PrintThumbnail() == 2)
-                $("#dashboard_print_thumbnail").remove()
+            if (self.dashboardSettings.clearOn_PrintThumbnail() == 2) {
+                $("#dashboard_print_thumbnail").remove();
+                self.hasPrintThumbnail(false);
+            }
             self.layerProgress(0);
             self.heightProgressBarString("0%");
             self.heightProgressString(0.01);
@@ -474,55 +478,43 @@ $(function () {
             self.commandWidgetArray = self.dashboardSettings.commandWidgetArray;
 
             // --- Widget registry ---
-            // One entry per widget, in the order they appear in settings. Besides id and title, an entry names the
-            // plugin settings that control it:
-            //   show: shown at all (can instead be a function, with enable and disable functions, see Progress Gauges)
-            //   full: also shown in fullscreen and full browser window
-            //   printingOnly: only shown while printing
-            //   clearOn: when its data is cleared (1 = print start, 2 = print end)
+            // One entry per widget, in the order they appear in settings. size is the size a widget gets when it
+            // is added to a layout; entries without one are settings rather than widgets (setting names the
+            // plugin setting that turns them on and off). Which widgets are shown, where, how big and whether
+            // only while printing is stored in the layouts, see layout.py.
             // Extra settings for the settings page can be added in one of two ways (ONLY ONE PER WIDGET):
             //   settings: an array of radio, checkbox or title settings, see Progress Gauges and Filament Widget
             //   settingsId: the id (with a #) of a modal in the settings page jinja template
+            // clearOn names the setting for when its data is cleared (1 = print start, 2 = print end).
             var definitions = [
-                { id: "fullscreenButtons", title: gettext("FullScreen & FullBrowser Mode Buttons"), show: "showFullscreen" },
-                { id: "systemInfo", title: gettext("System Info"), show: "showSystemInfo", full: "fsSystemInfo", printingOnly: "printingOnly_SystemInfo", settingsId: "#dashboardSysInfoSettingsModal" },
-                { id: "status", title: gettext("Status"), show: "showStatus", full: "fsStatus", printingOnly: "printingOnly_Status" },
-                { id: "jobControlButtons", title: gettext("Job Control Buttons"), show: "showJobControlButtons", full: "fsJobControlButtons", printingOnly: "printingOnly_JobControlButtons" },
-                { id: "tempGauges", title: gettext("Temperature Gauges"), show: "enableTempGauges", full: "fsTempGauges", printingOnly: "printingOnly_TempGauges", settingsId: "#dashboardTempGaugeSettingsModal" },
-                { id: "fan", title: gettext("Fan Gauge"), show: "showFan", full: "fsFan", printingOnly: "printingOnly_Fan" },
+                { id: "fullscreenButtons", title: gettext("FullScreen & FullBrowser Mode Buttons"), setting: "showFullscreen" },
+                { id: "systemInfo", title: gettext("System Info"), size: "4x1", settingsId: "#dashboardSysInfoSettingsModal" },
+                { id: "status", title: gettext("Status"), size: "4x1" },
+                { id: "jobControlButtons", title: gettext("Job Control Buttons"), size: "4x1" },
+                { id: "tempGauges", title: gettext("Temperature Gauges"), size: "3x1", settingsId: "#dashboardTempGaugeSettingsModal" },
+                { id: "fan", title: gettext("Fan Gauge"), size: "1x1" },
                 {
                     id: "sensorInfo",
                     title: gettext("Enclosure Gauges"),
-                    show: "showSensorInfo",
-                    full: "fsSensorInfo",
-                    printingOnly: "printingOnly_SensorInfo",
+                    size: "4x1",
                     settings: [
                         { type: "radio", title: gettext("Enclosure Plugin Gague Style"), setting: dashboardSettings.enclosureGaugeStyle, options: [{ name: gettext("Temperature Dial"), value: "3/4" }, { name: gettext("Text"), value: "text" }] }
                     ]
                 },
-                { id: "printThumbnail", title: gettext("Print Thumbnail (Slicer Thumbnails)"), show: "showPrintThumbnail", full: "fsPrintThumbnail", clearOn: "clearOn_PrintThumbnail" },
-                { id: "commandWidgets", title: gettext("Command Widgets"), show: "showCommandWidgets", full: "fsCommandWidgets", printingOnly: "printingOnly_CommandWidgets", settingsId: "#dashboardCommandSettingsModal" },
-                { id: "printerMessage", title: gettext("Printer Message (M117)"), show: "showPrinterMessage", full: "fsPrinterMessage", printingOnly: "printingOnly_PrinterMessage", clearOn: "clearOn_PrinterMessage" },
+                { id: "printThumbnail", title: gettext("Print Thumbnail (Slicer Thumbnails)"), size: "2x1", clearOn: "clearOn_PrintThumbnail" },
+                { id: "commandWidgets", title: gettext("Command Widgets"), size: "4x1", settingsId: "#dashboardCommandSettingsModal" },
+                { id: "printerMessage", title: gettext("Printer Message (M117)"), size: "4x1", clearOn: "clearOn_PrinterMessage" },
                 {
                     id: "progressGauges",
                     title: gettext("Progress Gauges"),
-                    show: function () {
-                        return dashboardSettings.showTimeProgress() || dashboardSettings.showProgress() || dashboardSettings.showLayerProgress() || dashboardSettings.showHeightProgress();
+                    size: "4x1",
+                    // an added progress widget needs at least one gauge
+                    onAdd: function () {
+                        if (!(dashboardSettings.showTimeProgress() || dashboardSettings.showProgress() || dashboardSettings.showLayerProgress() || dashboardSettings.showHeightProgress())) {
+                            dashboardSettings.showTimeProgress(true);
+                            dashboardSettings.showProgress(true);
+                        }
                     },
-                    enable: function () {
-                        dashboardSettings.showTimeProgress(true);
-                        dashboardSettings.showProgress(true);
-                        dashboardSettings.showLayerProgress(true);
-                        dashboardSettings.showHeightProgress(true);
-                    },
-                    disable: function () {
-                        dashboardSettings.showTimeProgress(false);
-                        dashboardSettings.showProgress(false);
-                        dashboardSettings.showLayerProgress(false);
-                        dashboardSettings.showHeightProgress(false);
-                    },
-                    full: "fsProgressGauges",
-                    printingOnly: "printingOnly_ProgressGauges",
                     settings: [
                         { type: "radio", title: gettext("Progress gauge type"), setting: dashboardSettings.gaugetype, options: [{ name: gettext("Circle"), value: "circle" }, { name: gettext("Bar"), value: "bar" }] },
                         { type: "checkbox", title: gettext("Show Time Progress Gauge"), setting: dashboardSettings.showTimeProgress },
@@ -534,58 +526,129 @@ $(function () {
                 {
                     id: "layerGraph",
                     title: gettext("Layer Duration Graph"),
-                    show: "showLayerGraph",
-                    full: "fsLayerGraph",
-                    printingOnly: "printingOnly_LayerGraph",
+                    size: "4x1",
                     clearOn: "clearOn_LayerGraph",
                     settings: [
                         { type: "radio", title: gettext("Layer graph type"), setting: dashboardSettings.layerGraphType, options: [{ name: gettext("Normal"), value: "normal" }, { name: gettext("Last 40 Layers"), value: "last40layers" }, { name: gettext("Scrolling"), value: "scrolling" }] }
                     ]
                 },
-                { id: "fileName", title: gettext("File Name"), show: "showFileName", full: "fsFileName", printingOnly: "printingOnly_FileName" },
+                { id: "fileName", title: gettext("File Name"), size: "4x1" },
                 {
                     id: "filament",
                     title: gettext("Filament Widget"),
-                    show: "showFilament",
-                    full: "fsFilament",
-                    printingOnly: "printingOnly_Filament",
+                    size: "2x1",
                     clearOn: "clearOn_Filament",
                     settings: [
                         { type: "title", title: gettext("The filament widget shows how much filament has been extruded. It can also show the time untill next filament change.") },
                         { type: "checkbox", title: gettext("Show time untill next filament change"), setting: dashboardSettings.showFilamentChangeTime }
                     ]
                 },
-                { id: "feedrate", title: gettext("Feedrate"), show: "showFeedrate", full: "fsFeedrate", printingOnly: "printingOnly_Feedrate", clearOn: "clearOn_Feedrate", settingsId: "#dashboardFeedrateSettingsModal" },
-                { id: "timeEstimate", title: gettext("Time Estimate"), show: "showTimeEstimate", full: "fsTimeEstimate", printingOnly: "printingOnly_TimeEstimate" },
-                { id: "layerInfo", title: gettext("Layer Info"), show: "showLayerInfo", full: "fsLayerInfo", printingOnly: "printingOnly_LayerInfo" },
-                { id: "webcam", title: gettext("Webcam"), show: "showWebCam", full: "fsWebCam", printingOnly: "printingOnly_WebCam", settingsId: "#dashboardWebcamSettingsModal" }
+                { id: "feedrate", title: gettext("Feedrate"), size: "2x1", clearOn: "clearOn_Feedrate", settingsId: "#dashboardFeedrateSettingsModal" },
+                { id: "timeEstimate", title: gettext("Time Estimate"), size: "4x1" },
+                { id: "layerInfo", title: gettext("Layer Info"), size: "4x1" },
+                { id: "webcam", title: gettext("Webcam"), size: "2x2", settingsId: "#dashboardWebcamSettingsModal" }
             ];
 
             self.widgets = definitions.map(self.createWidget);
             self.widgets.forEach(function (widget) {
                 self.widget[widget.id] = widget;
             });
+            self.placeableWidgets = self.widgets.filter(function (widget) {
+                return widget.size;
+            });
+        };
+
+        // --- Layouts ---
+        // dashboardSettings.layout.tab and .full are observable arrays of placements { id, size, printingOnly }.
+        // The tab shows the tab layout, fullscreen and the full browser window show the full layout, and while
+        // editing the layout being edited is shown.
+        self.layoutSizes = ["1x1", "2x1", "3x1", "4x1", "2x2", "4x2"];
+        self.editMode = ko.observable(false);
+        self.editLayoutName = ko.observable("tab");
+        self.draggedPlacement = ko.observable(null);
+
+        self.layoutOf = function (name) {
+            var layout = self.dashboardSettings && self.dashboardSettings.layout;
+            return layout && layout[name] ? layout[name] : ko.observableArray([]);
+        };
+
+        self.activeLayoutName = ko.pureComputed(function () {
+            if (self.editMode())
+                return self.editLayoutName();
+            return self.isFull() ? "full" : "tab";
+        });
+
+        self.activeLayout = ko.pureComputed(function () {
+            return self.layoutOf(self.activeLayoutName())();
+        });
+
+        self.makePlacement = function (id, size, printingOnly) {
+            return { id: ko.observable(id), size: ko.observable(size), printingOnly: ko.observable(!!printingOnly) };
+        };
+
+        self.findPlacement = function (name, id) {
+            return ko.utils.arrayFirst(self.layoutOf(name)(), function (placement) {
+                return placement.id() == id;
+            });
+        };
+
+        // Widgets that have nothing to show at the moment, their cards are hidden rather than left empty
+        self.hasPrintThumbnail = ko.observable(false);
+        self.widgetEmpty = {
+            printThumbnail: function () { return !self.hasPrintThumbnail(); },
+            tempGauges: function () { return !self.temperatureModel.isOperational(); },
+            fan: function () { return !self.temperatureModel.isOperational(); },
+            sensorInfo: function () { return !self.enclosureViewModel || self.enclosureViewModel.rpi_inputs_temperature_sensors().length == 0; },
+            commandWidgets: function () { return !self.commandWidgetArray().some(function (command) { return command.enabled(); }); },
+            webcam: function () { return !self.webcam_perm(); }
+        };
+
+        // A placement is shown unless it is limited to printing and nothing prints, or it has nothing to show.
+        // While editing everything is shown.
+        self.placementShown = function (placement) {
+            if (self.editMode())
+                return true;
+            var empty = self.widgetEmpty[placement.id()];
+            return (!placement.printingOnly() || self.printerStateModel.isPrinting()) && !(empty && empty());
+        };
+
+        self.placementTitle = function (placement) {
+            var widget = self.widget[placement.id()];
+            return widget ? widget.title : placement.id();
+        };
+
+        self.placeWidget = function (name, widget, printingOnly) {
+            if (self.findPlacement(name, widget.id))
+                return;
+            if (widget.onAdd)
+                widget.onAdd();
+            self.layoutOf(name).push(self.makePlacement(widget.id, widget.size, printingOnly));
+        };
+
+        // Placed in the tab or the full layout
+        self.isPlaced = function (id) {
+            return !!(self.findPlacement("tab", id) || self.findPlacement("full", id));
+        };
+
+        self.unplaceWidget = function (name, id) {
+            var placement = self.findPlacement(name, id);
+            if (placement)
+                self.layoutOf(name).remove(placement);
         };
 
         // Turns a registry definition into a widget. The settings page binds to enabled, enableInFull, printingOnly
-        // and clearOn, and tests whether they exist, so they are only set when the definition has them.
-        // The tab binds to the computed observables:
-        //   inLayout: enabled, and allowed in fullscreen when the dashboard is fullscreen
+        // and clearOn, and tests whether they exist. For a placed widget they read and write the layouts:
+        //   enabled: placed in the tab (turning it off also takes it out of fullscreen)
+        //   enableInFull: placed in fullscreen
+        //   printingOnly: only shown while printing, in both layouts
+        // The tab uses the computed observables, which follow the layout being shown:
+        //   inLayout: placed in it
         //   printingOk: not limited to printing, or a print is running
         //   shown: both of the above
         self.createWidget = function (definition) {
             var dashboardSettings = self.dashboardSettings;
-            var widget = { id: definition.id, title: definition.title };
+            var widget = { id: definition.id, title: definition.title, size: definition.size, onAdd: definition.onAdd };
 
-            widget.enabled = typeof definition.show == "function" ? definition.show : dashboardSettings[definition.show];
-            if (definition.enable) {
-                widget.enable = definition.enable;
-                widget.disable = definition.disable;
-            }
-            if (definition.full)
-                widget.enableInFull = dashboardSettings[definition.full];
-            if (definition.printingOnly)
-                widget.printingOnly = dashboardSettings[definition.printingOnly];
             if (definition.clearOn)
                 widget.clearOn = dashboardSettings[definition.clearOn];
             if (definition.settings)
@@ -593,11 +656,60 @@ $(function () {
             if (definition.settingsId)
                 widget.settingsId = definition.settingsId;
 
+            if (!definition.size) {
+                widget.enabled = dashboardSettings[definition.setting];
+                widget.inLayout = widget.shown = widget.enabled;
+                widget.printingOk = ko.pureComputed(function () { return true; });
+                return widget;
+            }
+
+            widget.enabled = ko.pureComputed({
+                read: function () {
+                    return !!self.findPlacement("tab", widget.id);
+                },
+                write: function (value) {
+                    if (value) {
+                        var full = self.findPlacement("full", widget.id);
+                        self.placeWidget("tab", widget, full && full.printingOnly());
+                    } else {
+                        self.unplaceWidget("tab", widget.id);
+                        self.unplaceWidget("full", widget.id);
+                    }
+                }
+            });
+            widget.enableInFull = ko.pureComputed({
+                read: function () {
+                    return !!self.findPlacement("full", widget.id);
+                },
+                write: function (value) {
+                    if (value) {
+                        var tab = self.findPlacement("tab", widget.id);
+                        self.placeWidget("full", widget, tab && tab.printingOnly());
+                    } else {
+                        self.unplaceWidget("full", widget.id);
+                    }
+                }
+            });
+            widget.printingOnly = ko.pureComputed({
+                read: function () {
+                    var placement = self.findPlacement("tab", widget.id) || self.findPlacement("full", widget.id);
+                    return placement ? placement.printingOnly() : false;
+                },
+                write: function (value) {
+                    ["tab", "full"].forEach(function (name) {
+                        var placement = self.findPlacement(name, widget.id);
+                        if (placement)
+                            placement.printingOnly(value);
+                    });
+                }
+            });
+
             widget.inLayout = ko.pureComputed(function () {
-                return widget.enabled() && (!self.isFull() || !widget.enableInFull || widget.enableInFull());
+                return !!self.findPlacement(self.activeLayoutName(), widget.id);
             });
             widget.printingOk = ko.pureComputed(function () {
-                return !widget.printingOnly || !widget.printingOnly() || self.printerStateModel.isPrinting();
+                var placement = self.findPlacement(self.activeLayoutName(), widget.id);
+                return !placement || !placement.printingOnly() || self.printerStateModel.isPrinting();
             });
             widget.shown = ko.pureComputed(function () {
                 return widget.inLayout() && widget.printingOk();
@@ -606,19 +718,166 @@ $(function () {
         };
 
         self.enableWidget = function (widget) {
-            if (widget.enable != null)
-                widget.enable();
-            else {
-                widget.enabled(true)
-            };
+            widget.enabled(true);
         };
 
         self.disableWidget = function (widget) {
-            if (widget.disable != null)
-                widget.disable();
-            else {
-                widget.enabled(false)
+            widget.enabled(false);
+        };
+
+        // --- Layout editing ---
+        var layoutBeforeEdit = null;
+
+        self.canEditLayout = ko.pureComputed(function () {
+            try {
+                return self.loginState.hasPermission(self.access.permissions.SETTINGS);
+            } catch (e) {
+                return self.loginState.isAdmin();
+            }
+        });
+
+        self.layoutToJS = function () {
+            var plain = {};
+            ["tab", "full"].forEach(function (name) {
+                plain[name] = self.layoutOf(name)().map(function (placement) {
+                    return { id: placement.id(), size: placement.size(), printingOnly: !!placement.printingOnly() };
+                });
+            });
+            return plain;
+        };
+
+        self.setLayout = function (name, placements) {
+            self.layoutOf(name)(placements.map(function (placement) {
+                return self.makePlacement(placement.id, placement.size, placement.printingOnly);
+            }));
+        };
+
+        self.startEditLayout = function () {
+            layoutBeforeEdit = self.layoutToJS();
+            self.editLayoutName(self.isFull() ? "full" : "tab");
+            self.editMode(true);
+        };
+
+        self.cancelEditLayout = function () {
+            if (layoutBeforeEdit) {
+                self.setLayout("tab", layoutBeforeEdit.tab);
+                self.setLayout("full", layoutBeforeEdit.full);
+            }
+            self.editMode(false);
+        };
+
+        self.finishEditLayout = function () {
+            OctoPrint.settings.savePluginSettings("dashboard", { layout: self.layoutToJS() })
+                .done(function () {
+                    self.editMode(false);
+                })
+                .fail(function () {
+                    new PNotify({
+                        title: "Dashboard",
+                        type: "error",
+                        text: gettext("The layout could not be saved."),
+                        hide: true
+                    });
+                });
+        };
+
+        self.resetLayout = function () {
+            OctoPrint.get("api/plugin/dashboard").done(function (response) {
+                self.setLayout(self.editLayoutName(), response.defaultLayout[self.editLayoutName()]);
+            });
+        };
+
+        self.unplacedWidgets = ko.pureComputed(function () {
+            var name = self.editLayoutName();
+            return self.placeableWidgets.filter(function (widget) {
+                return !self.findPlacement(name, widget.id);
+            });
+        });
+
+        self.addToEditLayout = function (widget) {
+            self.placeWidget(self.editLayoutName(), widget, false);
+        };
+
+        self.removeFromEditLayout = function (placement) {
+            self.layoutOf(self.editLayoutName()).remove(placement);
+        };
+
+        self.movePlacement = function (placement, offset) {
+            var list = self.layoutOf(self.editLayoutName());
+            var from = list.indexOf(placement);
+            var to = from + offset;
+            if (from < 0 || to < 0 || to >= list().length)
+                return;
+            list.splice(from, 1);
+            list.splice(to, 0, placement);
+        };
+
+        // Dragging works with mouse, pen and touch: the card under the pointer swaps places with the dragged one
+        self.dragPlacement = function (placement, event) {
+            var e = event.originalEvent || event;
+            if (!self.editMode() || (e.button !== undefined && e.button !== 0))
+                return true;
+            e.preventDefault();
+            var list = self.layoutOf(self.editLayoutName());
+            self.draggedPlacement(placement);
+
+            var onMove = function (ev) {
+                var under = document.elementFromPoint(ev.clientX, ev.clientY);
+                var card = under && $(under).closest(".dashboardCard")[0];
+                if (!card)
+                    return;
+                var target = ko.dataFor(card);
+                var from = list.indexOf(placement);
+                var to = list.indexOf(target);
+                if (from < 0 || to < 0 || from == to)
+                    return;
+                list.splice(from, 1);
+                list.splice(to, 0, placement);
             };
+            var onUp = function () {
+                document.removeEventListener("pointermove", onMove);
+                document.removeEventListener("pointerup", onUp);
+                document.removeEventListener("pointercancel", onUp);
+                self.draggedPlacement(null);
+            };
+            document.addEventListener("pointermove", onMove);
+            document.addEventListener("pointerup", onUp);
+            document.addEventListener("pointercancel", onUp);
+            return false;
+        };
+
+        // Arrow keys on the drag handle move the card
+        self.keyMovePlacement = function (placement, event) {
+            var offset = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[event.key];
+            if (!offset)
+                return true;
+            self.movePlacement(placement, offset);
+            setTimeout(function () {
+                $('.dashboardCard[data-id="' + placement.id() + '"] .dashboardCardHandle').focus();
+            }, 0);
+            return false;
+        };
+
+        // Called when a widget's template has been rendered, also after it moved between layouts
+        self.widgetRendered = function (elements) {
+            var card = $(elements).filter("*").first().closest(".dashboardCard");
+            switch (card.attr("data-id")) {
+                case "webcam":
+                    if (self.bindingDone) {
+                        self._disableWebcam();
+                        self._switchWebcam(self.webcamState());
+                    }
+                    break;
+                case "layerGraph":
+                    self.createLayerGraph();
+                    break;
+                case "fileName":
+                    self.fitties = fitty("#fileInfo", { minSize: 2, maxSize: 20 });
+                    break;
+                case "printThumbnail":
+                    self.updatePrintThumbnail();
+                    break;
+            }
         };
 
         self.onAfterBinding = function () {
@@ -628,6 +887,7 @@ $(function () {
         self.updatePrintThumbnail = function () {
             $('#dashboard_print_thumbnail').remove();
             thumbnail = $('#prusaslicer_state_thumbnail');
+            self.hasPrintThumbnail(thumbnail.length > 0);
             if (thumbnail) {
                 clone = thumbnail.clone();
                 clone.attr("id", "dashboard_print_thumbnail");
@@ -778,13 +1038,7 @@ $(function () {
         };
 
         self.dashboardFullClass = function () {
-            var css = { dashboardOverlayFull: self.dashboardSettings.dashboardOverlayFull() };
-            css['dashboard_full_ratio169_rotated'] = false;
-            css['dashboard_full_ratio43_rotated'] = false;
-            css['dashboard_full_ratio169_unrotated'] = false;
-            css['dashboard_full_ratio43_unrotated'] = false;
-            css['dashboard_full_' + self.webcamRatioClass() + (self.rotate() ? '_rotated' : '_unrotated')] = true;
-            return css;
+            return { dashboardOverlayFull: self.dashboardSettings.dashboardOverlayFull(), "dashboard-editing": self.editMode() };
         };
 
         self.webcamRatioClass = function () {
@@ -1028,8 +1282,16 @@ $(function () {
         };
 
 
+        self.createLayerGraph = function () {
+            var element = $(".dashboardCard .ct-chart")[0];
+            self.layerGraph = element ? new Chartist.Line(element) : null;
+            if (self.layerGraph && self.layerGraphData)
+                self.renderChart(self.layerGraphData[0], self.layerGraphData[1]);
+        };
+
         self.renderChart = function (layerTimes, layerLabels) {
-            if (self.bindingDone) {
+            self.layerGraphData = [layerTimes, layerLabels];
+            if (self.bindingDone && self.layerGraph) {
                 //create a prototype multi-dimensional array
                 var data = {
                     labels: [],
@@ -1095,62 +1357,13 @@ $(function () {
         };
 
         self.updateChartWidth = function () {
-            if (self.bindingDone) {
+            if (self.bindingDone && self.layerGraph) {
                 var options = {
                     width: `${self.chartWidth}%`
                 };
                 self.layerGraph.update(options);
             }
         };
-
-        self.gaugesCentreInGrid = function (type, index = 0, css = {}) {
-            var last = [{}];
-            var totalNum = 0;
-            var setLast = function (type, index = 0) {
-                totalNum++;
-                last[1] = last[0];
-                last[0] = { type: type, index: index };
-            }
-            if (self.temperatureModel.isOperational()) {
-                if (self.dashboardSettings.enableTempGauges()) {
-                    self.temperatureModel.tools().forEach(function (val, index) {
-                        if (!self.dashboardSettings.hideHotend() || (self.dashboardSettings.hideHotend() && val.target() > 0))
-                            setLast('tool', index);
-                    });
-                    if (self.temperatureModel.hasBed())
-                        setLast('bed');
-                    if (self.temperatureModel.hasChamber())
-                        setLast('chamber');
-                }
-                if (self.dashboardSettings.showFan())
-                    setLast('fan');
-
-                if (self.dashboardSettings.showSensorInfo() && self.enclosureViewModel && self.dashboardSettings.enclosureGaugeStyle() == "3/4") {
-                    self.enclosureViewModel.rpi_inputs_temperature_sensors().forEach(function (val, index) {
-                        setLast('enclosure', index);
-                    });
-                }
-
-                if (self.dashboardSettings.showCommandWidgets()) {
-                    self.commandWidgetArray().forEach(function (val, index) {
-                        if (val.enabled() && self.castToWidgetTypes(val.type()) === self.widgetTypes.THREE_QUARTER)
-                            setLast('cmd', index);
-                    });
-                }
-
-                totalNum %= 3;
-
-                css.centreInGrid2 = false;
-                css.centreInGrid1 = false;
-                // Check that this gauge is one of the two in the final row
-                if (totalNum == 2 && ((type == last[0].type && index == last[0].index) || (type == last[1].type && index == last[1].index)))
-                    css.centreInGrid2 = true;
-                // Check that this gauge is the one in the final row
-                if (totalNum == 1 && type == last[0].type && index == last[0].index)
-                    css.centreInGrid1 = true;
-            }
-            return css;
-        }
 
         // full page
         if (dashboardIsFull) {
@@ -1187,7 +1400,7 @@ $(function () {
                 self.switchToDefaultWebcam();
             }
 
-            self.layerGraph = new Chartist.Line('.ct-chart');
+            self.createLayerGraph();
 
             self.doTempGaugeTicks();
 
@@ -1253,7 +1466,7 @@ $(function () {
                 }
             });
 
-            if (self.dashboardSettings.showPrintThumbnail()) {
+            if (self.isPlaced("printThumbnail")) {
                 setTimeout(self.updatePrintThumbnail, 2500);
             }
 
@@ -1316,8 +1529,8 @@ $(function () {
     // view model class, parameters for constructor, container to bind to
     OCTOPRINT_VIEWMODELS.push({
         construct: DashboardViewModel,
-        dependencies: ["temperatureViewModel", "printerStateViewModel", "printerProfilesViewModel", "connectionViewModel", "settingsViewModel", "controlViewModel", "enclosureViewModel", "loginStateViewModel"],
-        optional: ["enclosureViewModel"],
+        dependencies: ["temperatureViewModel", "printerStateViewModel", "printerProfilesViewModel", "connectionViewModel", "settingsViewModel", "controlViewModel", "enclosureViewModel", "loginStateViewModel", "accessViewModel"],
+        optional: ["enclosureViewModel", "accessViewModel"],
         elements: ["#tab_plugin_dashboard", "#settings_plugin_dashboard"]
     });
 });
