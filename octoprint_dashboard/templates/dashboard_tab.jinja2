@@ -82,6 +82,9 @@
             data-bind="click: function () { printingOnly(!printingOnly()); }, css: {active: printingOnly}, attr: {'aria-pressed': printingOnly() ? 'true' : 'false'}">
             <i class="fas fa-print"></i>
           </button>
+          <button type="button" class="dashboardCardButton" title="{{ _('Settings') }}" data-bind="click: function () { $root.openWidgetDialog($root.widget[id()]); }, visible: $root.widget[id()]">
+            <i class="fas fa-cog"></i>
+          </button>
           <button type="button" class="dashboardCardButton" title="{{ _('Hide') }}" data-bind="click: $root.removeFromEditLayout">
             <i class="fas fa-eye-slash"></i>
           </button>
@@ -102,6 +105,80 @@
     </button>
     <!-- /ko -->
     <span data-bind="visible: unplacedWidgets().length == 0">{{ _('All widgets are shown.') }}</span>
+  </div>
+
+  <!-- Widget settings dialog, opened from the gear in edit mode and on the settings page. Moved to <body> on startup. -->
+  <div id="dashboardWidgetDialog" class="modal hide fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <!-- ko with: dialogWidget -->
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+      <h3 data-bind="text: title"></h3>
+    </div>
+    <div class="modal-body">
+      <div class="row-fluid">
+        <div data-bind="css: { span7: $root.previewable($data), span12: !$root.previewable($data) }">
+          <h5>{{ _('Where it is shown') }}</h5>
+          <table class="table table-condensed dashboardPlacementTable">
+            <tbody data-bind="foreach: $root.dialogPlacements">
+              <tr>
+                <td><label class="checkbox"><input type="checkbox" data-bind="checked: shown"> <span data-bind="text: label"></span></label></td>
+                <td><select class="input-mini" title="{{ _('Size (columns x rows)') }}" data-bind="options: $root.layoutSizes, value: size, enable: shown"></select></td>
+                <td><label class="checkbox"><input type="checkbox" data-bind="checked: printingOnly, enable: shown"> {{ _('Only while printing') }}</label></td>
+              </tr>
+            </tbody>
+          </table>
+          <!-- ko if: $data.clearOn -->
+          <div class="dashboardDialogRow">
+            <label>{{ _('Clear its data on') }}
+              <select class="input-medium" data-bind="value: clearOn">
+                <option value="0">{{ _('never') }}</option>
+                <option value="1">{{ _('print start') }}</option>
+                <option value="2">{{ _('print end') }}</option>
+              </select>
+            </label>
+          </div>
+          <!-- /ko -->
+
+          <!-- ko if: $root.hasSettingsTemplate($data) || $data.settings -->
+          <h5>{{ _('Widget') }}</h5>
+          <!-- /ko -->
+          <!-- ko if: $root.hasSettingsTemplate($data) -->
+          <div class="form-horizontal dashboardDialogSettings" data-bind="template: { name: 'dashboard_settings_' + id, data: $root }"></div>
+          <!-- /ko -->
+          <!-- ko if: !$root.hasSettingsTemplate($data) && $data.settings -->
+          <div class="dashboardDialogSettings" data-bind="foreach: settings">
+            <!-- ko if: type == 'checkbox' -->
+            <label class="checkbox"><input type="checkbox" data-bind="checked: setting"> <span data-bind="text: title"></span></label>
+            <!-- /ko -->
+            <!-- ko if: type == 'radio' -->
+            <div class="dashboardDialogRow">
+              <strong data-bind="text: title"></strong>
+              <!-- ko foreach: options -->
+              <label class="radio inline"><input type="radio" data-bind="checked: $parent.setting, attr: {value: value}"> <span data-bind="text: name"></span></label>
+              <!-- /ko -->
+            </div>
+            <!-- /ko -->
+            <!-- ko if: type == 'title' -->
+            <p class="muted" data-bind="text: title"></p>
+            <!-- /ko -->
+          </div>
+          <!-- /ko -->
+        </div>
+        <!-- ko if: $root.previewable($data) -->
+        <div class="span5">
+          <h5>{{ _('Preview') }}</h5>
+          <div class="dashboardCard dashboardPreview" data-bind="attr: {'data-id': id}">
+            <div class="dashboardCardBody" data-bind="template: { name: 'dashboard_widget_' + id, data: $root }"></div>
+          </div>
+        </div>
+        <!-- /ko -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="dashboardDialogNote muted" data-bind="text: $root.editMode() ? '{{ _('Saved when you press Done in the layout editor.') }}' : '{{ _('Saved with the settings.') }}'"></span>
+      <button type="button" class="btn btn-primary" data-dismiss="modal">{{ _('Close') }}</button>
+    </div>
+    <!-- /ko -->
   </div>
 
   <!-- This section is required for Babel to pick up the english strings for translation that will only render with gettext() -WM -->

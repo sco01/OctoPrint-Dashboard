@@ -482,16 +482,16 @@ $(function () {
             // is added to a layout; entries without one are settings rather than widgets (setting names the
             // plugin setting that turns them on and off). Which widgets are shown, where, how big and whether
             // only while printing is stored in the layouts, see layout.py.
-            // Extra settings for the settings page can be added in one of two ways (ONLY ONE PER WIDGET):
+            // A widget's own settings are shown in its settings dialog, in one of two ways (ONLY ONE PER WIDGET):
+            //   a template with the id dashboard_settings_<id> in the settings page jinja template
             //   settings: an array of radio, checkbox or title settings, see Progress Gauges and Filament Widget
-            //   settingsId: the id (with a #) of a modal in the settings page jinja template
             // clearOn names the setting for when its data is cleared (1 = print start, 2 = print end).
             var definitions = [
                 { id: "fullscreenButtons", title: gettext("FullScreen & FullBrowser Mode Buttons"), setting: "showFullscreen" },
-                { id: "systemInfo", title: gettext("System Info"), size: "4x1", settingsId: "#dashboardSysInfoSettingsModal" },
+                { id: "systemInfo", title: gettext("System Info"), size: "4x1" },
                 { id: "status", title: gettext("Status"), size: "4x1" },
                 { id: "jobControlButtons", title: gettext("Job Control Buttons"), size: "4x1" },
-                { id: "tempGauges", title: gettext("Temperature Gauges"), size: "3x1", settingsId: "#dashboardTempGaugeSettingsModal" },
+                { id: "tempGauges", title: gettext("Temperature Gauges"), size: "3x1" },
                 { id: "fan", title: gettext("Fan Gauge"), size: "1x1" },
                 {
                     id: "sensorInfo",
@@ -502,7 +502,7 @@ $(function () {
                     ]
                 },
                 { id: "printThumbnail", title: gettext("Print Thumbnail (Slicer Thumbnails)"), size: "2x1", clearOn: "clearOn_PrintThumbnail" },
-                { id: "commandWidgets", title: gettext("Command Widgets"), size: "4x1", settingsId: "#dashboardCommandSettingsModal" },
+                { id: "commandWidgets", title: gettext("Command Widgets"), size: "4x1" },
                 { id: "printerMessage", title: gettext("Printer Message (M117)"), size: "4x1", clearOn: "clearOn_PrinterMessage" },
                 {
                     id: "progressGauges",
@@ -543,10 +543,10 @@ $(function () {
                         { type: "checkbox", title: gettext("Show time untill next filament change"), setting: dashboardSettings.showFilamentChangeTime }
                     ]
                 },
-                { id: "feedrate", title: gettext("Feedrate"), size: "2x1", clearOn: "clearOn_Feedrate", settingsId: "#dashboardFeedrateSettingsModal" },
+                { id: "feedrate", title: gettext("Feedrate"), size: "2x1", clearOn: "clearOn_Feedrate" },
                 { id: "timeEstimate", title: gettext("Time Estimate"), size: "4x1" },
                 { id: "layerInfo", title: gettext("Layer Info"), size: "4x1" },
-                { id: "webcam", title: gettext("Webcam"), size: "2x2", settingsId: "#dashboardWebcamSettingsModal" }
+                { id: "webcam", title: gettext("Webcam"), size: "2x2" }
             ];
 
             self.widgets = definitions.map(self.createWidget);
@@ -636,8 +636,7 @@ $(function () {
                 self.layoutOf(name).remove(placement);
         };
 
-        // Turns a registry definition into a widget. The settings page binds to enabled, enableInFull, printingOnly
-        // and clearOn, and tests whether they exist. For a placed widget they read and write the layouts:
+        // Turns a registry definition into a widget. enabled, enableInFull and printingOnly read and write the layouts:
         //   enabled: placed in the tab (turning it off also takes it out of fullscreen)
         //   enableInFull: placed in fullscreen
         //   printingOnly: only shown while printing, in both layouts
@@ -653,8 +652,6 @@ $(function () {
                 widget.clearOn = dashboardSettings[definition.clearOn];
             if (definition.settings)
                 widget.settings = definition.settings;
-            if (definition.settingsId)
-                widget.settingsId = definition.settingsId;
 
             if (!definition.size) {
                 widget.enabled = dashboardSettings[definition.setting];
@@ -758,16 +755,21 @@ $(function () {
             self.editMode(true);
         };
 
+        // Cancel also undoes changes made in widget settings dialogs, by reloading the settings
         self.cancelEditLayout = function () {
             if (layoutBeforeEdit) {
                 self.setLayout("tab", layoutBeforeEdit.tab);
                 self.setLayout("full", layoutBeforeEdit.full);
             }
             self.editMode(false);
+            self.settingsViewModel.requestData();
         };
 
+        // Done saves the layouts and the dashboard settings changed in widget settings dialogs
         self.finishEditLayout = function () {
-            OctoPrint.settings.savePluginSettings("dashboard", { layout: self.layoutToJS() })
+            var data = ko.mapping.toJS(self.dashboardSettings);
+            data.layout = self.layoutToJS();
+            OctoPrint.settings.savePluginSettings("dashboard", data)
                 .done(function () {
                     self.editMode(false);
                 })
@@ -856,6 +858,116 @@ $(function () {
                 $('.dashboardCard[data-id="' + placement.id() + '"] .dashboardCardHandle').focus();
             }, 0);
             return false;
+        };
+
+        // --- Widget settings dialog ---
+        self.dialogWidget = ko.observable(null);
+
+        // The dialog's placement rows, one per layout
+        self.dialogPlacements = ["tab", "full"].map(function (name) {
+            var placement = function () {
+                var widget = self.dialogWidget();
+                return widget ? self.findPlacement(name, widget.id) : null;
+            };
+            return {
+                label: name == "tab" ? gettext("Tab") : gettext("Fullscreen"),
+                shown: ko.pureComputed({
+                    read: function () {
+                        return !!placement();
+                    },
+                    write: function (value) {
+                        var widget = self.dialogWidget();
+                        if (value)
+                            self.placeWidget(name, widget, false);
+                        else
+                            self.unplaceWidget(name, widget.id);
+                    }
+                }),
+                size: ko.pureComputed({
+                    read: function () {
+                        var current = placement();
+                        return current ? current.size() : self.dialogWidget() && self.dialogWidget().size;
+                    },
+                    write: function (value) {
+                        var current = placement();
+                        if (current)
+                            current.size(value);
+                    }
+                }),
+                printingOnly: ko.pureComputed({
+                    read: function () {
+                        var current = placement();
+                        return current ? current.printingOnly() : false;
+                    },
+                    write: function (value) {
+                        var current = placement();
+                        if (current)
+                            current.printingOnly(value);
+                    }
+                })
+            };
+        });
+
+        self.hasSettingsTemplate = function (widget) {
+            return !!document.getElementById("dashboard_settings_" + widget.id);
+        };
+
+        // Widgets whose template can be rendered a second time in the dialog (no element ids that scripts look up)
+        var previewableWidgets = ["systemInfo", "status", "jobControlButtons", "tempGauges", "fan", "sensorInfo", "commandWidgets", "printerMessage", "progressGauges", "filament", "feedrate", "timeEstimate", "layerInfo"];
+        self.previewable = function (widget) {
+            return previewableWidgets.indexOf(widget.id) >= 0;
+        };
+
+        self.openWidgetDialog = function (widget) {
+            self.dialogWidget(widget);
+            $("#dashboardWidgetDialog").modal("show");
+        };
+
+        // --- Layout actions on the settings page, saved with the settings ---
+        self.customizeLayoutFromSettings = function () {
+            $("#settings_dialog").modal("hide");
+            $('#tabs a[href="#tab_plugin_dashboard"]').tab("show");
+            self.startEditLayout();
+        };
+
+        self.exportLayout = function () {
+            var blob = new Blob([JSON.stringify({ dashboardLayout: 1, layout: self.layoutToJS() }, null, 2)], { type: "application/json" });
+            var link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "dashboard-layout.json";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        };
+
+        // Accepts a file from exportLayout. Unknown widgets and sizes are left out.
+        self.importLayout = function (data, event) {
+            var file = event.target.files[0];
+            event.target.value = "";
+            if (!file)
+                return;
+            var reader = new FileReader();
+            reader.onload = function () {
+                try {
+                    var layout = JSON.parse(reader.result).layout;
+                    ["tab", "full"].forEach(function (name) {
+                        self.setLayout(name, (layout[name] || []).filter(function (placement) {
+                            return self.widget[placement.id] && self.widget[placement.id].size && self.layoutSizes.indexOf(placement.size) >= 0;
+                        }));
+                    });
+                } catch (e) {
+                    new PNotify({ title: "Dashboard", type: "error", text: gettext("This is not a Dashboard layout file."), hide: true });
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        self.resetLayouts = function () {
+            OctoPrint.get("api/plugin/dashboard").done(function (response) {
+                self.setLayout("tab", response.defaultLayout.tab);
+                self.setLayout("full", response.defaultLayout.full);
+            });
         };
 
         // Called when a widget's template has been rendered, also after it moved between layouts
@@ -1402,6 +1514,9 @@ $(function () {
 
             self.createLayerGraph();
 
+            // The widget settings dialog is opened on top of the settings dialog too
+            $("#dashboardWidgetDialog").appendTo("body");
+
             self.doTempGaugeTicks();
 
             // full page
@@ -1433,6 +1548,9 @@ $(function () {
                     self.RefreshThemeColors();
                 });
             } catch { }
+
+            // the ticks follow the setting right away, so the widget settings dialog can preview them
+            self.dashboardSettings.temperatureTicks.subscribe(self.doTempGaugeTicks);
 
             self.dashboardSettings.useThemeifyColor.subscribe(function (newValue) {
                 self.RefreshThemeColors();

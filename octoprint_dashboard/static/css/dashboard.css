@@ -768,3 +768,90 @@ button.dashboardButton#job_cancel>span>span {
     background: rgba(0, 0, 0, 0.45);
 }
 
+
+/* Widget settings dialog */
+
+#dashboardWidgetDialog {
+    width: 760px;
+    margin-left: -380px;
+}
+
+@media (max-width: 767px) {
+    #dashboardWidgetDialog {
+        width: auto;
+        margin-left: 0;
+    }
+}
+
+#dashboardWidgetDialog h5 {
+    margin-top: 0;
+}
+
+.dashboardPlacementTable td {
+    vertical-align: middle;
+}
+
+.dashboardPlacementTable label.checkbox,
+.dashboardPlacementTable select {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.dashboardDialogRow {
+    margin-bottom: 10px;
+}
+
+.dashboardDialogRow select {
+    margin: 0 0 0 6px;
+}
+
+.dashboardDialogSettings .control-label {
+    width: 160px;
+}
+
+.dashboardDialogSettings .controls {
+    margin-left: 180px;
+}
+
+.dashboardDialogNote {
+    float: left;
+    padding-top: 5px;
+    font-size: 12px;
+}
+
+.dashboardPreview {
+    pointer-events: none;
+}
+
+/* Settings page */
+
+.dashboardWidgetList td {
+    vertical-align: middle;
+}
+
+.dashboardWidgetName {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboardWidgetTags .label {
+    white-space: nowrap;
+}
+
+.dashboardWidgetGear {
+    width: 30px;
+    text-align: right;
+}
+
+.dashboardSettings h4 {
+    margin-top: 16px;
+}
+
+.dashboardAnalysisModes {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 5px;
+}
