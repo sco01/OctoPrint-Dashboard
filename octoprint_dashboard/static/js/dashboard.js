@@ -1668,6 +1668,12 @@ $(function () {
                     $('#dashboardContainer').css('background-color', 'inherit');
                     $('#dashboardContainer').parents(':not(html):not(body)').css('background-color', 'inherit');
                 }
+
+                // Esc leaves the full browser window, like it leaves fullscreen
+                document.addEventListener("keydown", function (event) {
+                    if (event.key == "Escape" && !$(".modal:visible").length)
+                        self.toggleFullBrowserWindow();
+                });
             }
 
             self.RefreshThemeColors();
