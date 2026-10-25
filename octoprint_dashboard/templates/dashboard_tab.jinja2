@@ -35,9 +35,12 @@
       <!-- ko template: { name: 'dashboard_icon', data: 'fullscreen' } --><!-- /ko -->
     </button>
     <a class="dashboardIconButton" id="fullWindowIconLink" title="{{ _('Full Browser Window (Esc to leave)') }}" href="#"
-      data-bind="click: toggleFullBrowserWindow, visible: widget.fullscreenButtons.shown(), attr: {href: getToggleFullBrowserWindowHref()}">
+      data-bind="click: toggleFullBrowserWindow, visible: widget.fullscreenButtons.shown() && !isFull(), attr: {href: getToggleFullBrowserWindowHref()}">
       <!-- ko template: { name: 'dashboard_icon', data: 'window' } --><!-- /ko -->
     </a>
+    <button type="button" class="dashboardIconButton dashboardExitButton" title="{{ _('Leave fullscreen (Esc)') }}" data-bind="click: leaveFull, visible: isFull()">
+      <!-- ko template: { name: 'dashboard_icon', data: 'close' } --><!-- /ko --> <span>{{ _('Exit') }}</span>
+    </button>
   </div>
 
     <div class="alert alert-block"
@@ -72,7 +75,7 @@
   <!-- The widgets of the layout being shown, see layout.py -->
   <div class="dashboardGrid" data-bind="foreach: activeLayout">
     <div class="dashboardCard"
-      data-bind="attr: {'data-id': id(), 'data-size': size()}, visible: $root.placementShown($data), css: {dragging: $root.draggedPlacement() === $data}">
+      data-bind="attr: {'data-id': id(), 'data-size': size()}, visible: $root.placementShown($data), style: {gridColumn: $root.gapSpan($data)}, css: {dragging: $root.draggedPlacement() === $data}">
       <!-- ko if: $root.editMode -->
       <div class="dashboardCardEdit">
         <div class="dashboardCardEditTitle">
@@ -250,6 +253,7 @@
     </div>
     <!-- ko if: history() -->
     <svg class="dashboardSpark" viewBox="0 0 180 22" preserveAspectRatio="none" aria-hidden="true">
+      <polygon data-bind="attr: { points: history() + ' 180,22 0,22' }, style: { fill: color() }"></polygon>
       <polyline data-bind="attr: { points: history() }, style: { stroke: color() }"></polyline>
     </svg>
     <!-- /ko -->
@@ -465,7 +469,7 @@
       <span class="dashboardHeadName">{{ _('Filament') }}</span>
     </div>
     <div title="{{ _('Extruded Filament') }}"><span class="dashboardBig" data-bind="text: Number(extrudedFilament()).toFixed(2)"></span> <span class="dashboardUnit">m</span></div>
-    <!-- ko if: dashboardSettings.showFilamentChangeTime -->
+    <!-- ko if: dashboardSettings.showFilamentChangeTime() && timeToNextChange() && timeToNextChange() != '-' -->
     <div class="dashboardSmall" title="{{ _('Time to Next Filament Change') }}">{{ _('Next change') }}: <span data-bind="text: timeToNextChange()"></span></div>
     <!-- /ko -->
   </div>
@@ -526,10 +530,10 @@
     <div class="dashboardHead">
       <!-- ko template: { name: 'dashboard_icon', data: 'layers' } --><!-- /ko -->
       <span class="dashboardHeadName" title="{{ _('Current Layer') }}">{{ _('Layer') }}</span>
-      <span class="dashboardHeadRight" title="{{ _('Average Layer Time') }}" data-bind="visible: printerStateModel.isPrinting(), text: '⌀ ' + formatSeconds(averageLayerDuration())"></span>
+      <span class="dashboardHeadRight" title="{{ _('Average Layer Time') }}" data-bind="visible: printerStateModel.isPrinting() && Number(averageLayerDuration()) > 0, text: '⌀ ' + formatSeconds(averageLayerDuration())"></span>
     </div>
     <div><span class="dashboardBig" id="currentLayer" data-bind="text: currentLayer"></span> <span class="dashboardUnit" id="totalLayer" title="{{ _('Total Layers') }}" data-bind="text: '/ ' + (parseInt(totalLayer()) - 1 || '–')"></span></div>
-    <div class="dashboardBar"><i data-bind="style: { width: clampPercent(layerProgress()) + '%' }"></i></div>
+    <div class="dashboardBar" data-bind="attr: { title: '{{ _('This layer') }}: ' + clampPercent(layerProgress()) + ' %' }"><i data-bind="style: { width: clampPercent(parseInt(totalLayer()) > 1 ? currentLayer() / (parseInt(totalLayer()) - 1) * 100 : 0) + '%' }"></i></div>
     <!-- ko if: printerStateModel.isPrinting() -->
     <div class="dashboardSmall" title="{{ _('Current height') }}">
       {{ _('Height') }} <strong id="currentHeight" data-bind="text: currentHeight"></strong> / <span id="totalHeight" data-bind="text: totalHeight() + ' mm'"></span>

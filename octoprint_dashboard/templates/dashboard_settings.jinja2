@@ -33,6 +33,9 @@
                 <button type="button" class="btn" data-bind="click: resetLayouts"><i class="fas fa-undo"></i> {{ _('Reset') }}</button>
                 <input type="file" id="dashboardLayoutImport" accept=".json,application/json" class="hide" data-bind="event: { change: importLayout }">
             </p>
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.dashboard.fillLayoutGaps"> {{ _('Fill the gaps that hidden widgets leave, by widening the widget next to them') }}
+            </label>
 
             <h4>{{ _('Widgets') }}</h4>
             <p class="muted">{{ _('Where each widget is shown. The gear opens its settings.') }}</p>

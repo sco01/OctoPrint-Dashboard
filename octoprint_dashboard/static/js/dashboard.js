@@ -171,6 +171,14 @@ $(function () {
             return "?" + urlParams.toString() + "#tab_plugin_dashboard";
         }
 
+        // The exit button in fullscreen and the full browser window: leaves fullscreen first, then the window
+        self.leaveFull = function () {
+            if (document.fullscreenElement)
+                self.fullScreen();
+            else if (dashboardIsFull)
+                self.toggleFullBrowserWindow();
+        };
+
         self.toggleFullBrowserWindow = function () {
             if (!dashboardIsFull) {
                 //location.href="/#tab_plugin_dashboard/?dashboard=full";
@@ -606,6 +614,75 @@ $(function () {
                 return true;
             var empty = self.widgetEmpty[placement.id()];
             return (!placement.printingOnly() || self.printerStateModel.isPrinting()) && !(empty && empty());
+        };
+
+        // --- Filling gaps ---
+        // Hidden cards (only while printing, nothing to show) leave holes in the grid. With fillLayoutGaps a card
+        // with free cells to its right grows into them while it is shown; the layout itself is not changed.
+        // The cards are placed here the way the browser places them (row dense, see dashboard.css), and a card only
+        // takes cells that no card ends up in, so no other card moves.
+        var narrowScreen = window.matchMedia ? window.matchMedia("(max-width: 767px)") : null;
+        self.gridColumns = ko.observable(narrowScreen && narrowScreen.matches ? 2 : 4);
+        if (narrowScreen) {
+            var onScreenWidth = function () { self.gridColumns(narrowScreen.matches ? 2 : 4); };
+            if (narrowScreen.addEventListener)
+                narrowScreen.addEventListener("change", onScreenWidth);
+            else
+                narrowScreen.addListener(onScreenWidth);
+        }
+
+        self.gapSpans = ko.pureComputed(function () {
+            var spans = {};
+            if (self.editMode() || !self.dashboardSettings.fillLayoutGaps())
+                return spans;
+            var columns = self.gridColumns();
+            var overlay = self.isFull() && self.dashboardSettings.dashboardOverlayFull();
+            var taken = [];
+            var isFree = function (row, column, width, height) {
+                for (var r = row; r < row + height; r++)
+                    for (var c = column; c < column + width; c++)
+                        if (taken[r] && taken[r][c])
+                            return false;
+                return true;
+            };
+            var take = function (row, column, width, height) {
+                for (var r = row; r < row + height; r++)
+                    for (var c = column; c < column + width; c++)
+                        (taken[r] = taken[r] || [])[c] = true;
+            };
+            var cards = [];
+            self.activeLayout().forEach(function (placement) {
+                // the overlaid webcam is fixed behind the grid, not in it
+                if (!self.placementShown(placement) || (overlay && placement.id() == "webcam"))
+                    return;
+                var size = placement.size().split("x");
+                var card = { id: placement.id(), width: Math.min(Number(size[0]), columns), height: Number(size[1]) };
+                for (var row = 0; card.row === undefined; row++)
+                    for (var column = 0; column + card.width <= columns && card.row === undefined; column++)
+                        if (isFree(row, column, card.width, card.height)) {
+                            card.row = row;
+                            card.column = column;
+                        }
+                take(card.row, card.column, card.width, card.height);
+                cards.push(card);
+            });
+            cards.sort(function (a, b) { return a.row - b.row || a.column - b.column; });
+            cards.forEach(function (card) {
+                var width = card.width;
+                while (card.column + width < columns && isFree(card.row, card.column + width, 1, card.height)) {
+                    take(card.row, card.column + width, 1, card.height);
+                    width++;
+                }
+                if (width > card.width)
+                    spans[card.id] = width;
+            });
+            return spans;
+        });
+
+        // The grid-column of a card that grows into a gap, or nothing (its size class sets it)
+        self.gapSpan = function (placement) {
+            var width = self.gapSpans()[placement.id()];
+            return width ? "span " + width : "";
         };
 
         self.placementTitle = function (placement) {
@@ -1243,7 +1320,9 @@ $(function () {
             disk: "M4 6h16v12H4zM4 14h16M16 16.5h.01",
             trend_up: "M12 19V5M6 11l6-6 6 6",
             trend_down: "M12 5v14M6 13l6 6 6-6",
-            trend_stable: "M5 12h14"
+            trend_stable: "M5 12h14",
+            trend_target: "M5 12.5l4.5 4.5L19 7",
+            close: "M6 6l12 12M18 6L6 18"
         };
 
         var commandIcons = {
@@ -1371,7 +1450,7 @@ $(function () {
         };
 
         self.trendText = function (trend) {
-            return { up: gettext("heating"), down: gettext("cooling"), stable: gettext("stable") }[trend];
+            return { up: gettext("heating"), down: gettext("cooling"), stable: gettext("stable"), target: gettext("at target") }[trend];
         };
 
         var heaterGauge = function (key, name, icon, actual, target, max) {
@@ -1390,9 +1469,13 @@ $(function () {
                     actual();
                     return self.dashboardSettings.showTempHistory() ? self.historyPoints(key) : "";
                 },
+                // At target when within 2 degrees, or steady within the deviation of the color setting
                 trend: function () {
-                    actual();
-                    return self.historyTrend(key);
+                    var trend = self.historyTrend(key);
+                    var off = Math.abs(actual() - target());
+                    if (target() > 0 && (off <= 2 || (off <= Number(self.dashboardSettings.targetTempDeviation()) && trend == "stable")))
+                        return "target";
+                    return trend;
                 }
             });
         };

@@ -658,6 +658,8 @@ class DashboardPlugin(
             defaultWebcam=0,
             # overlay dashboard over the webcam in fullscreen
             dashboardOverlayFull=False,
+            # cards grow into the gaps that hidden cards leave
+            fillLayoutGaps=True,
             # visibility of widgets, used to build the default layout (see layout.py)
             showFan=True,
             showWebCam=False,
@@ -694,7 +696,7 @@ class DashboardPlugin(
             fsFeedrate=True,
             fsWebCam=True,
             fsPrintThumbnail=True,
-            fsStatus=True,
+            fsStatus=False,
             fsFileName=True,
             fsTimeEstimate=True,
             fsLayerInfo=True,
