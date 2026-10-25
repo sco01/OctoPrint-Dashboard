@@ -123,6 +123,8 @@
     overflow: auto;
     padding: 2vmin;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboardFullLoader {
@@ -380,30 +382,96 @@ button.dashboardButton#job_cancel.confirm {
     margin-top: 10px;
 }
 
-/* Fullscreen and full browser window */
+/* Fullscreen and full browser window: the rows share the screen height, so the layout always fits without
+   scrolling, and each card is a size container that its content scales to (see "Fullscreen: widgets" below) */
+
+.dashboard-full .dashboardToolbar {
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.dashboard-full .dashboardToolbar:hover {
+    opacity: 1;
+}
 
 .dashboard-full .dashboardGrid {
+    flex: 1 1 0;
+    min-height: 0;
     gap: 1.5vmin;
-    min-height: calc(100vh - 4vmin);
-    padding-top: 40px;
+    padding-top: 36px;
     box-sizing: border-box;
-    grid-auto-rows: minmax(min-content, 1fr);
+    grid-auto-rows: minmax(0, 1fr);
 }
 
 .dashboard-full.dashboard-editing .dashboardGrid {
+    min-height: 50vh;
     padding-top: 0;
 }
 
-.dashboard-full .dashboardCard[data-id="webcam"] .dashboardCardBody {
-    align-content: center;
-}
-
 .dashboard-full .dashboardCard {
+    min-height: 0;
+    overflow: hidden;
+    padding: 1vmin;
     border-color: rgba(255, 255, 255, 0.15);
+    container: dashboardcard / size;
 }
 
-.dashboard-full .webcam_fixed_ratio {
-    max-height: calc(100vh - 8vmin);
+.dashboard-full .dashboardCardBody {
+    flex: 1 1 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: center;
+    justify-content: safe center;
+    align-items: stretch;
+    min-height: 0;
+    font-size: clamp(12px, min(100cqh / var(--dashboard-lines), 100cqw / var(--dashboard-columns)), 64px);
+}
+
+/* How many lines and columns (in em) a widget's text needs, which sets how large it can be in its card */
+.dashboard-full .dashboardCard {
+    --dashboard-lines: 9;
+    --dashboard-columns: 16;
+}
+
+.dashboard-full .dashboardCard[data-id="fileName"],
+.dashboard-full .dashboardCard[data-id="printerMessage"] {
+    --dashboard-lines: 5;
+    --dashboard-columns: 20;
+}
+
+.dashboard-full .dashboardCard[data-id="status"] {
+    --dashboard-lines: 5;
+    --dashboard-columns: 30;
+}
+
+.dashboard-full .dashboardCard[data-id="timeEstimate"] {
+    --dashboard-lines: 5;
+    --dashboard-columns: 38;
+}
+
+.dashboard-full .dashboardCard[data-id="filament"],
+.dashboard-full .dashboardCard[data-id="feedrate"],
+.dashboard-full .dashboardCard[data-id="layerInfo"] {
+    --dashboard-lines: 9;
+    --dashboard-columns: 12;
+}
+
+.dashboard-full .dashboardCard[data-id="systemInfo"] {
+    --dashboard-lines: 11;
+    --dashboard-columns: 14;
+}
+
+.dashboard-full .dashboardCard[data-id="jobControlButtons"] {
+    --dashboard-lines: 6;
+    --dashboard-columns: 24;
+}
+
+.dashboard-full .dashboardCard[data-id="layerGraph"] {
+    --dashboard-lines: 12;
+}
+
+.dashboard-full .dashboardCardBody>* {
+    flex: none;
 }
 
 .dashboard-full.dashboardOverlayFull .dashboardCard[data-id="webcam"] {
@@ -428,6 +496,18 @@ button.dashboardButton#job_cancel.confirm {
 #dashboardWidgetDialog {
     width: 760px;
     margin-left: -380px;
+}
+
+/* Above the fullscreen dashboard (z-index 100000), backdrop included. OctoPrint's modal manager wraps the
+   dialog in .modal-scrollable and sets the z-index inline, hence !important */
+#dashboardWidgetDialog,
+.modal-scrollable:has(>#dashboardWidgetDialog) {
+    z-index: 100060 !important;
+}
+
+#dashboardWidgetDialog.in~.modal-backdrop,
+.modal-scrollable:has(>#dashboardWidgetDialog.in)+.modal-backdrop {
+    z-index: 100050 !important;
 }
 
 @media (max-width: 767px) {
@@ -1006,29 +1086,287 @@ button.dashboardButton#job_cancel.confirm {
     color: #fff;
 }
 
-/* Fullscreen: everything a bit larger */
+/* Fullscreen: widgets. Text is sized in em of the card body, whose font size follows the card (cqh/cqw);
+   gauges, rings, the webcam and the thumbnail fill the card */
 
-.dashboard-full .dashboardDialValue span,
-.dashboard-full .dashboardRingValue span,
-.dashboard-full .dashboardBig {
-    font-size: 4vmin;
-}
-
-.dashboard-full .dashboardStatValue {
-    font-size: 2.6vmin;
+.dashboard-full .dashboardWidget,
+.dashboard-full .dashboardRows {
+    gap: 0.5em;
 }
 
 .dashboard-full .dashboardHead,
-.dashboard-full .dashboardStatKey {
-    font-size: 1.6vmin;
-    line-height: 2.2vmin;
+.dashboard-full .dashboardStatKey,
+.dashboard-full .dashboardSmall,
+.dashboard-full .dashboardRow,
+.dashboard-full .dashboardProgressRowText,
+.dashboard-full .dashboardEmpty {
+    font-size: 1em;
+    line-height: 1.4;
+}
+
+.dashboard-full .dashboardHead {
+    gap: 0.4em;
+}
+
+.dashboard-full .dashboardIco {
+    width: 1.3em;
+    height: 1.3em;
+}
+
+.dashboard-full .dashboardStats {
+    gap: 0.6em 1.4em;
+}
+
+.dashboard-full .dashboardStats .dashboardStat {
+    flex-basis: 8em;
+    gap: 0.6em;
+}
+
+.dashboard-full .dashboardStat>.dashboardIco {
+    width: 1.8em;
+    height: 1.8em;
+}
+
+.dashboard-full .dashboardStatValue {
+    font-size: 1.6em;
+}
+
+.dashboard-full .dashboardBig {
+    font-size: 2.6em;
+}
+
+.dashboard-full .dashboardUnit {
+    font-size: 1.2em;
+}
+
+.dashboard-full .dashboardBar {
+    height: 0.45em;
+    border-radius: 0.25em;
+}
+
+.dashboard-full .dashboardRowKey {
+    width: 3em;
+}
+
+.dashboard-full .dashboardRowValue {
+    width: 3.6em;
+}
+
+.dashboard-full .dashboardAxis {
+    font-size: 0.85em;
+}
+
+.dashboard-full .dashboardButtons {
+    gap: 0.6em;
+}
+
+.dashboard-full .dashboardButtons .dashboardButton {
+    flex-basis: 6em;
+    padding: 0.4em 0.8em;
+    font-size: 1.1em;
+    line-height: 1.4;
+}
+
+/* Gauges side by side, or stacked in a tall card. Each gauge is a size container, and the dial takes what is
+   left of it after the head and the history line */
+
+.dashboard-full .dashboardGauges {
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    min-height: 0;
+    gap: 1em;
+}
+
+@container dashboardcard (aspect-ratio < 1) {
+    .dashboard-full .dashboardGauges {
+        flex-direction: column;
+    }
+}
+
+.dashboard-full .dashboardGauge {
+    --dashboard-gauge-head: clamp(12px, min(7cqw, 9cqh), 40px);
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 0;
+    position: relative;
+    max-width: none;
+    margin: 0;
+    container: dashboardgauge / size;
+}
+
+.dashboard-full .dashboardGauge .dashboardHead {
+    font-size: var(--dashboard-gauge-head);
+}
+
+.dashboard-full .dashboardDial {
+    width: min(100%, (100cqh - 1.4 * var(--dashboard-gauge-head) - 8cqh - 8px) * 1.25);
+    margin: 4px auto 0;
+    container: dashboarddial / inline-size;
 }
 
 .dashboard-full .dashboardDial>svg {
-    max-width: 28vmin;
+    max-width: none;
+}
+
+.dashboard-full .dashboardDialValue span {
+    font-size: max(14px, 18cqw);
+}
+
+.dashboard-full .dashboardDialValue small {
+    margin-top: 0.15em;
+    font-size: max(10px, 7cqw);
+}
+
+.dashboard-full .dashboardTrend {
+    font-size: max(11px, 8cqw);
+    line-height: 1;
+}
+
+.dashboard-full .dashboardTrend .dashboardIco {
+    width: 1em;
+    height: 1em;
+}
+
+/* A small dial only has room for the trend arrow */
+@container dashboarddial (width < 100px) {
+    .dashboard-full .dashboardTrend span {
+        display: none;
+    }
+}
+
+.dashboard-full .dashboardOffScale {
+    width: 10cqw;
+    height: 10cqw;
+    font-size: 7cqw;
+    line-height: 10cqw;
+}
+
+.dashboard-full .dashboardSpark {
+    width: min(100%, (100cqh - 1.4 * var(--dashboard-gauge-head) - 8cqh - 8px) * 1.25);
+    height: 8cqh;
+    margin: 4px auto 0;
+}
+
+/* Short gauges leave out the history line, and in wide, short ones the head goes along the top corners so
+   the dial gets the full height */
+@container dashboardgauge (aspect-ratio > 1.6) {
+    .dashboard-full .dashboardDial {
+        width: min(100%, (100cqh - 1.4 * var(--dashboard-gauge-head) - 8px) * 1.25);
+    }
+
+    .dashboard-full .dashboardSpark {
+        display: none;
+    }
+}
+
+@container dashboardgauge (aspect-ratio > 2) {
+    .dashboard-full .dashboardGauge .dashboardHead {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        font-size: clamp(12px, 11cqh, 40px);
+    }
+
+    .dashboard-full .dashboardDial {
+        width: min(100%, (100cqh - 4px) * 1.25);
+        margin-top: 0;
+    }
+
+    .dashboard-full .dashboardSpark {
+        display: none;
+    }
+}
+
+/* Progress rings: each ring is a size container with the circle as large as fits */
+
+.dashboard-full .dashboardRings {
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    min-height: 0;
+    gap: 1em;
 }
 
 .dashboard-full .dashboardRing {
-    width: 16vmin;
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    container-type: size;
 }
 
+.dashboard-full .dashboardRing>svg {
+    width: min(100cqw, 100cqh);
+}
+
+.dashboard-full .dashboardRingValue span {
+    font-size: max(11px, min(17cqw, 17cqh));
+}
+
+.dashboard-full .dashboardRingValue small {
+    font-size: max(9px, min(8cqw, 8cqh));
+}
+
+.dashboard-full .dashboardRingsBars {
+    flex: none;
+    flex-direction: column;
+}
+
+/* Layer graph, thumbnail and webcam fill the card */
+
+.dashboard-full .dashboardCardBody>.layerTimes {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.dashboard-full .dashboardLayerBars {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+}
+
+.dashboard-full .dashboardCardBody>.thumbnailContainer {
+    flex: 1 1 0;
+    min-height: 0;
+    align-items: center;
+}
+
+.dashboard-full #dashboard_print_thumbnail {
+    max-height: 100%;
+}
+
+.dashboard-full .dashboardCardBody>#dashboard_webcam_container {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    container-type: size;
+}
+
+.dashboard-full #dashboard_webcam_container #dashboard_webcam_rotator.webcam_unrotated:has(.ratio169) {
+    width: min(100cqw, 100cqh * 16 / 9);
+    margin: 0 auto;
+}
+
+.dashboard-full #dashboard_webcam_container #dashboard_webcam_rotator.webcam_unrotated:has(.ratio43) {
+    width: min(100cqw, 100cqh * 4 / 3);
+    margin: 0 auto;
+}
+
+.dashboard-full #dashboard_webcam_container #dashboard_webcam_rotator.webcam_rotated:has(.ratio169) {
+    width: min(100cqw, 100cqh * 9 / 16);
+    margin: 0 auto;
+}
+
+.dashboard-full #dashboard_webcam_container #dashboard_webcam_rotator.webcam_rotated:has(.ratio43) {
+    width: min(100cqw, 100cqh * 3 / 4);
+    margin: 0 auto;
+}
+
+.dashboard-full #dashboard_webcam_hls {
+    max-height: 100cqh;
+    object-fit: contain;
+}
